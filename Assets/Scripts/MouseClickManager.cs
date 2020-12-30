@@ -8,6 +8,9 @@ public class MouseClickManager : MonoBehaviour
     private LayerMask unitLayer;
     public List<GameObject> unitsSelected;
 
+    [SerializeField]
+    private LayerMask landLayer;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -22,6 +25,7 @@ public class MouseClickManager : MonoBehaviour
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector2 mousePosition2d = new Vector2(mousePosition.x, mousePosition.y);
             RaycastHit2D rayHitUnit = Physics2D.Raycast(mousePosition2d, Vector2.zero, Mathf.Infinity, unitLayer);
+            RaycastHit2D rayHitLand = Physics2D.Raycast(mousePosition2d, Vector2.zero, Mathf.Infinity, landLayer);
 
             if (rayHitUnit.collider != null)
             {
@@ -41,9 +45,10 @@ public class MouseClickManager : MonoBehaviour
                     unitScript.ClickedOn();
                 }
             }
-            else
+            else if (rayHitLand.collider != null && unitsSelected.Count > 0 && rayHitUnit.collider == null) // if the player has selected units previously and clicks on a land, check if the units can be moved)
             {
-                
+                MoveAllUnits(rayHitLand.collider.gameObject);
+                ClearUnitSelection();
             }
         }
         if (Input.GetMouseButtonDown(1))
@@ -63,6 +68,18 @@ public class MouseClickManager : MonoBehaviour
                 unitScript.ClickedOn();
             }
             unitsSelected.Clear();
+        }
+    }
+    void MoveAllUnits(GameObject landClicked)
+    {        
+        if (unitsSelected.Count > 0)
+        {
+            Debug.Log("Moving selected units.");
+            foreach (GameObject unit in unitsSelected)
+            {
+                UnitScript unitScript = unit.GetComponent<UnitScript>();
+                unitScript.MoveUnit(landClicked);
+            }
         }
     }
 }

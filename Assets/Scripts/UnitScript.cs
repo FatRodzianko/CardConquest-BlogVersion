@@ -38,4 +38,19 @@ public class UnitScript : MonoBehaviour
 			}
 		}
 	}
+
+    public void MoveUnit(GameObject LandToMoveTo)
+    {
+        Vector3 temp = LandToMoveTo.transform.position;
+        if (gameObject.tag == "tank")
+        {
+            temp.y += 0.5f;
+            gameObject.transform.position = temp;
+        }
+        else if (gameObject.tag == "infantry")
+        {
+            temp.y -= 0.5f;
+            gameObject.transform.position = temp;
+        }
+    }
 }
