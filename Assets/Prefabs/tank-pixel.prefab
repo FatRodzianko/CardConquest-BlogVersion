@@ -145,3 +145,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   outline: {fileID: 1614029942010219773, guid: c7e2f3cf0f56f934d903d04b5a2535d0, type: 3}
   currentlySelected: 0
+  landLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  currentLandOccupied: {fileID: 0}

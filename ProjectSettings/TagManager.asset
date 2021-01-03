@@ -18,7 +18,7 @@ TagManager:
   - 
   - Land
   - Units
-  - 
+  - UI-Text
   - 
   - 
   - 
@@ -42,4 +42,7 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: UI-Text
+    uniqueID: 650611931
     locked: 0

@@ -11,6 +11,7 @@ public class MouseClickManager : MonoBehaviour
     [SerializeField]
     private LayerMask landLayer;
 
+
     // Start is called before the first frame update
     void Start()
     {
@@ -36,6 +37,12 @@ public class MouseClickManager : MonoBehaviour
                     unitsSelected.Add(rayHitUnit.collider.gameObject);
                     unitScript.currentlySelected = !unitScript.currentlySelected;
                     unitScript.ClickedOn();
+
+                    if (unitScript.currentLandOccupied != null)
+                    {
+                        LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
+                        landScript.HighlightLandArea();
+                    }
                 }
                 else 
                 {
@@ -43,6 +50,16 @@ public class MouseClickManager : MonoBehaviour
                     Debug.Log("Deselecting the unit unit.");
                     unitScript.currentlySelected = !unitScript.currentlySelected;
                     unitScript.ClickedOn();
+                    unitScript.CheckLandForRemainingSelectedUnits();
+                    if (unitScript.currentLandOccupied != null)
+                    {
+                        LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
+                        if (landScript.multipleUnitsOnLand)
+                        {
+                            Debug.Log("UN-Selected unit on land with multiple units.");
+                        }
+
+                    }
                 }
             }
             else if (rayHitLand.collider != null && unitsSelected.Count > 0 && rayHitUnit.collider == null) // if the player has selected units previously and clicks on a land, check if the units can be moved)
@@ -66,10 +83,12 @@ public class MouseClickManager : MonoBehaviour
                 UnitScript unitScript = unit.GetComponent<UnitScript>();
                 unitScript.currentlySelected = !unitScript.currentlySelected;
                 unitScript.ClickedOn();
+                unitScript.CheckLandForRemainingSelectedUnits();
             }
             unitsSelected.Clear();
         }
     }
+
     void MoveAllUnits(GameObject landClicked)
     {        
         if (unitsSelected.Count > 0)

@@ -7,6 +7,10 @@ public class UnitScript : MonoBehaviour
     [SerializeField]
     public GameObject outline;
     public bool currentlySelected = false;
+
+
+    public GameObject currentLandOccupied;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -51,6 +55,71 @@ public class UnitScript : MonoBehaviour
         {
             temp.y -= 0.5f;
             gameObject.transform.position = temp;
+        }
+        UpdateUnitLandObject(LandToMoveTo);
+    }
+
+    public void UpdateUnitLandObject(GameObject LandToMoveTo)
+    {
+        LandScript landScript = LandToMoveTo.GetComponent<LandScript>();
+
+        if (currentLandOccupied != LandToMoveTo)
+        {
+            //Current land tile should only be null when the game is first started and the unit hasn't been "assigned" a land tile yet
+            if (currentLandOccupied == null)
+            {
+                currentLandOccupied = LandToMoveTo;
+            }
+            Debug.Log("Unit moved to new land");
+            if (currentLandOccupied != null)
+            {
+                if (gameObject.tag == "infantry")
+                {
+                    //Remove unit from previous land tile
+                    Debug.Log("Removed infantry from previous land object at: " + currentLandOccupied.transform.position.x.ToString() + "," + currentLandOccupied.transform.position.y.ToString());
+                    currentLandOccupied.GetComponent<LandScript>().infantryOnLand.Remove(gameObject);
+                    currentLandOccupied.GetComponent<LandScript>().UpdateUnitText();
+
+                    //Add Unit to new land tile
+                    Debug.Log("Added infantry unit to land object at: " + LandToMoveTo.transform.position.x.ToString() + "," + LandToMoveTo.transform.position.y.ToString());
+                    landScript.infantryOnLand.Add(gameObject);
+                    if (landScript.infantryOnLand.Count > 1)
+                    {
+                        landScript.MultipleUnitsUIText("infantry");
+                        Debug.Log("More than 1 infantry on land");
+                    }
+
+                }
+                else if (gameObject.tag == "tank")
+                {
+                    //Remove unit from previous land tile
+                    Debug.Log("Removed tank from previous land object at: " + currentLandOccupied.transform.position.x.ToString() + "," + currentLandOccupied.transform.position.y.ToString());
+                    currentLandOccupied.GetComponent<LandScript>().tanksOnLand.Remove(gameObject);
+                    currentLandOccupied.GetComponent<LandScript>().UpdateUnitText();
+
+                    //Add unit to new land tile
+                    Debug.Log("Added tank unit to land object at: " + LandToMoveTo.transform.position.x.ToString() + "," + LandToMoveTo.transform.position.y.ToString());
+                    landScript.tanksOnLand.Add(gameObject);
+                    if (landScript.tanksOnLand.Count > 1)
+                    {
+                        landScript.MultipleUnitsUIText("tank");
+                        Debug.Log("More than 1 tank on land");
+                    }
+                }
+                // Remove the land highlight when a unit moves
+                currentLandOccupied.GetComponent<LandScript>().RemoveHighlightLandArea();
+            }
+            
+            currentLandOccupied = LandToMoveTo;
+        }
+
+    }
+    public void CheckLandForRemainingSelectedUnits()
+    {
+        if (currentLandOccupied != null)
+        {
+            LandScript landScript = currentLandOccupied.GetComponent<LandScript>();
+            landScript.CheckForSelectedUnits();
         }
     }
 }

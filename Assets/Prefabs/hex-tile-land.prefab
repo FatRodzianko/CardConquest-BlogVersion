@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 1147450166615734068}
   - component: {fileID: 1147450166615734069}
   - component: {fileID: 1147450166615734070}
+  - component: {fileID: 9149181893742710796}
   m_Layer: 9
   m_Name: hex-tile-land
   m_TagString: Untagged
@@ -137,3 +138,24 @@ PolygonCollider2D:
       - {x: -1.5799999, y: -3.05}
       - {x: 1.5699999, y: -3.05}
       - {x: 3.05, y: -0.17999999}
+--- !u!114 &9149181893742710796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1147450166615734071}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e76e0bc8fec2654387129aaa8e4b8d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  infantryOnLand: []
+  tanksOnLand: []
+  multipleUnitsOnLand: 0
+  infTextHolder: {fileID: 6770793700097966408, guid: 5da0dd5260cc5b048b15c49a5e8d26db,
+    type: 3}
+  tankTextHolder: {fileID: 2154977376858403865, guid: c85c5ef69765cf04a8c9e39c71b35fa1,
+    type: 3}
+  landOutline: {fileID: 1497987703742101805, guid: 38558a739d49f6b479b7d1f9ceee3185,
+    type: 3}
