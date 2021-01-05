@@ -27,7 +27,7 @@ public class MouseClickManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && EscMenuManager.instance.IsMainMenuOpen == false)
         {
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector2 mousePosition2d = new Vector2(mousePosition.x, mousePosition.y);
@@ -77,7 +77,7 @@ public class MouseClickManager : MonoBehaviour
                 ClearUnitSelection();
             }
         }
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(1) && EscMenuManager.instance.IsMainMenuOpen == false)
         {
             Debug.Log("Right clicked.");
             ClearUnitSelection();
