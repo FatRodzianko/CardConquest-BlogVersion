@@ -11,11 +11,17 @@ public class MouseClickManager : MonoBehaviour
     [SerializeField]
     private LayerMask landLayer;
 
-
+    public static MouseClickManager instance;
     // Start is called before the first frame update
     void Start()
     {
+        MakeInstance();
         unitsSelected = new List<GameObject>();
+    }
+    void MakeInstance()
+    {
+        if (instance == null)
+            instance = this;
     }
 
     // Update is called once per frame
@@ -64,7 +70,10 @@ public class MouseClickManager : MonoBehaviour
             }
             else if (rayHitLand.collider != null && unitsSelected.Count > 0 && rayHitUnit.collider == null) // if the player has selected units previously and clicks on a land, check if the units can be moved)
             {
-                MoveAllUnits(rayHitLand.collider.gameObject);
+                if (unitsSelected[0].GetComponent<UnitScript>().CanAllSelectedUnitsMove(rayHitLand.collider.gameObject))
+                {
+                    MoveAllUnits(rayHitLand.collider.gameObject);
+                }                
                 ClearUnitSelection();
             }
         }
