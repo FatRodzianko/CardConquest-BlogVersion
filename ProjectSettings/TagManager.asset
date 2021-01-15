@@ -6,6 +6,7 @@ TagManager:
   tags:
   - infantry
   - tank
+  - PlayerUnitHolder
   layers:
   - Default
   - TransparentFX

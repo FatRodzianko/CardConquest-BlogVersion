@@ -13,13 +13,15 @@ public class UnitScript : MonoBehaviour
     [SerializeField]
     private LayerMask landLayer;
 
+    public bool placedDuringUnitPlacement = false;
+
     // Start is called before the first frame update
     void Start()
     {
 		outline = Instantiate(outline, transform.position, Quaternion.identity);
 		outline.transform.SetParent(gameObject.transform);
 		ClickedOn();
-        GetStartingLandLocation();
+        //GetStartingLandLocation();
 
     }
 
@@ -145,6 +147,17 @@ public class UnitScript : MonoBehaviour
         {
             Debug.Log("Too many units to move.");
             canMove = false;
+            return canMove;
+        }
+        if (GameplayManager.instance.currentGamePhase == "Unit Placement")
+        {
+            foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
+            {
+                UnitScript unitScript = unit.GetComponent<UnitScript>();
+                unitScript.placedDuringUnitPlacement = true;
+            }
+            GameplayManager.instance.CheckIfAllUnitsHaveBeenPlaced();
+            canMove = true;
             return canMove;
         }
         foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
