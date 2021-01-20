@@ -151,14 +151,22 @@ public class UnitScript : MonoBehaviour
         }
         if (GameplayManager.instance.currentGamePhase == "Unit Placement")
         {
-            foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
+            if (landScript.cannotPlaceHere)
             {
-                UnitScript unitScript = unit.GetComponent<UnitScript>();
-                unitScript.placedDuringUnitPlacement = true;
+                Debug.Log("Can't place here. Too far from base.");
+                return false;
             }
-            GameplayManager.instance.CheckIfAllUnitsHaveBeenPlaced();
-            canMove = true;
-            return canMove;
+            else if (!landScript.cannotPlaceHere)
+            {
+                foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
+                {
+                    UnitScript unitScript = unit.GetComponent<UnitScript>();
+                    unitScript.placedDuringUnitPlacement = true;
+                }
+                GameplayManager.instance.CheckIfAllUnitsHaveBeenPlaced();
+                canMove = true;
+                return canMove;
+            }            
         }
         foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
         {

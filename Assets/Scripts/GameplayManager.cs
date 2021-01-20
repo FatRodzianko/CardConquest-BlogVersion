@@ -26,6 +26,7 @@ public class GameplayManager : MonoBehaviour
         SetGamePhaseText();
         ActivateUnitPlacementUI();
         PutUnitsInUnitBox();
+        LimitUserPlacementByDistanceToBase();
     }
 
     // Update is called once per frame
@@ -127,8 +128,42 @@ public class GameplayManager : MonoBehaviour
             Camera.main.orthographicSize = 7;
             SetGamePhaseText();
             UnitPlacementUI.SetActive(false);
+            RemoveCannotPlaceHereOutlines();
         }
 
+    }
+    void LimitUserPlacementByDistanceToBase()
+    {
+        Vector3 playerBaseLocation = GameObject.FindGameObjectWithTag("PlayerBase").transform.position;
+        GameObject allLand = GameObject.FindGameObjectWithTag("LandHolder");
+        foreach (Transform landObject in allLand.transform)
+        {
+            LandScript landScript = landObject.gameObject.GetComponent<LandScript>();
+            float disFromBase = Vector3.Distance(landObject.transform.position, playerBaseLocation);
+            Debug.Log(landScript.gameObject.name + "'s distance from player base: " + disFromBase.ToString());
+            if (disFromBase <= 6.0f)
+            {
+                landScript.cannotPlaceHere = false;
+            }
+            else
+            {
+                landScript.cannotPlaceHere = true;
+                landScript.CreateCannotPlaceHereOutline();
+            }
+        }
+    }
+    void RemoveCannotPlaceHereOutlines()
+    {
+        GameObject allLand = GameObject.FindGameObjectWithTag("LandHolder");
+        foreach (Transform landObject in allLand.transform)
+        {
+            LandScript landScript = landObject.gameObject.GetComponent<LandScript>();
+            if (landScript.cannotPlaceHere)
+            {
+                landScript.RemoveCannotPlaceHereOutline();
+                landScript.cannotPlaceHere = false;
+            }
+        }
     }
 
 }

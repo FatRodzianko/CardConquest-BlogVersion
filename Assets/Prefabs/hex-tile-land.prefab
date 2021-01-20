@@ -159,3 +159,6 @@ MonoBehaviour:
     type: 3}
   landOutline: {fileID: 1497987703742101805, guid: 38558a739d49f6b479b7d1f9ceee3185,
     type: 3}
+  cannotPlaceHereOutline: {fileID: 386276465766955766, guid: f21fce04a4eb97e4ba3d1ff7a00d3c8b,
+    type: 3}
+  cannotPlaceHere: 0

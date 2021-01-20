@@ -19,6 +19,9 @@ public class LandScript : MonoBehaviour
     public GameObject landOutline;
     private GameObject landOutlineObject;
 
+    public GameObject cannotPlaceHereOutline;
+    private GameObject cannotPlaceHereOutlineObject;
+    public bool cannotPlaceHere = false;
 
     // Start is called before the first frame update
     void Awake()
@@ -263,6 +266,21 @@ public class LandScript : MonoBehaviour
         if (tankText != null)
         {
             tankText.SetActive(true);
+        }
+    }
+    public void CreateCannotPlaceHereOutline()
+    {
+        if (cannotPlaceHereOutlineObject == null && cannotPlaceHere)
+        {
+            cannotPlaceHereOutlineObject = Instantiate(cannotPlaceHereOutline, transform.position, Quaternion.identity);
+            cannotPlaceHereOutlineObject.transform.parent = this.gameObject.transform;
+        }
+    }
+    public void RemoveCannotPlaceHereOutline()
+    {
+        if (cannotPlaceHereOutlineObject != null)
+        {
+            Destroy(cannotPlaceHereOutlineObject);
         }
     }
 }
