@@ -15,6 +15,12 @@ public class GameplayManager : MonoBehaviour
     private Text GamePhaseText;
     [SerializeField]
     private GameObject UnitPlacementUI, endUnitPlacementButton;
+
+    [SerializeField]
+    private Text unitMovementNoUnitsMovedText;
+    [SerializeField]
+    private GameObject UnitMovementUI, endUnitMovementButton;
+    public bool haveUnitsMoved = false;
     // Start is called before the first frame update
     void Awake()
     {
@@ -51,6 +57,8 @@ public class GameplayManager : MonoBehaviour
             UnitPlacementUI.SetActive(true);
         if (endUnitPlacementButton.activeInHierarchy)
             endUnitPlacementButton.SetActive(false);
+        if (UnitMovementUI.activeInHierarchy)
+            UnitMovementUI.SetActive(false);
     }
     void PutUnitsInUnitBox()
     {
@@ -129,6 +137,7 @@ public class GameplayManager : MonoBehaviour
             SetGamePhaseText();
             UnitPlacementUI.SetActive(false);
             RemoveCannotPlaceHereOutlines();
+            StartUnitMovementPhase();
         }
 
     }
@@ -162,6 +171,51 @@ public class GameplayManager : MonoBehaviour
             {
                 landScript.RemoveCannotPlaceHereOutline();
                 landScript.cannotPlaceHere = false;
+            }
+        }
+    }
+    public void StartUnitMovementPhase()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen)
+        {
+            Debug.Log("Starting the Unit Movement Phase.");
+            haveUnitsMoved = false;
+            ActivateUnitMovementUI();
+            SaveUnitStartingLocation();
+        }
+
+    }
+    void ActivateUnitMovementUI()
+    {
+        Debug.Log("Activating the Unit Movement UI");
+        if (!UnitMovementUI.activeInHierarchy && currentGamePhase == "Unit Movement")
+            UnitMovementUI.SetActive(true);
+        if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
+            unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+        if (endUnitMovementButton.activeInHierarchy)
+            endUnitMovementButton.GetComponent<Image>().color = Color.white;
+        // When the movement phase begins, save the land occupied by the unit to be used in movement resets
+        SaveUnitStartingLocation();
+
+    }
+    public void UnitsHaveMoved()
+    {
+        if (unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
+            unitMovementNoUnitsMovedText.gameObject.SetActive(false);
+        if (endUnitMovementButton.activeInHierarchy)
+            endUnitMovementButton.GetComponent<Image>().color = Color.yellow;
+        haveUnitsMoved = true;
+    }
+    void SaveUnitStartingLocation()
+    {
+        Debug.Log("Saving unit's starting land location.");
+        GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
+        foreach (Transform unitChild in unitHolder.transform)
+        {
+            UnitScript unitScript = unitChild.transform.gameObject.GetComponent<UnitScript>();
+            if (unitScript.currentLandOccupied != null)
+            {
+                unitScript.previouslyOccupiedLand = unitScript.currentLandOccupied;
             }
         }
     }

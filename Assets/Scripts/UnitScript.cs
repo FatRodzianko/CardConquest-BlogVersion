@@ -9,6 +9,7 @@ public class UnitScript : MonoBehaviour
     public bool currentlySelected = false;
 
     public GameObject currentLandOccupied;
+    public GameObject previouslyOccupiedLand;
 
     [SerializeField]
     private LayerMask landLayer;
@@ -171,7 +172,7 @@ public class UnitScript : MonoBehaviour
         foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
         {
             UnitScript unitScript = unit.GetComponent<UnitScript>();
-            float disFromCurrentLocation = Vector3.Distance(landUserClicked.transform.position, unitScript.currentLandOccupied.transform.position);
+            float disFromCurrentLocation = Vector3.Distance(landUserClicked.transform.position, unitScript.previouslyOccupiedLand.transform.position);
             if (disFromCurrentLocation < 3.01f)
             {
                 Debug.Log("SUCCESS: Unit movement distance of: " + disFromCurrentLocation.ToString("0.00"));

@@ -73,6 +73,8 @@ public class MouseClickManager : MonoBehaviour
                 if (unitsSelected[0].GetComponent<UnitScript>().CanAllSelectedUnitsMove(rayHitLand.collider.gameObject))
                 {
                     MoveAllUnits(rayHitLand.collider.gameObject);
+                    if(GameplayManager.instance.currentGamePhase == "Unit Movement")
+                        GameplayManager.instance.UnitsHaveMoved();
                 }                
                 ClearUnitSelection();
             }
@@ -97,7 +99,6 @@ public class MouseClickManager : MonoBehaviour
             unitsSelected.Clear();
         }
     }
-
     void MoveAllUnits(GameObject landClicked)
     {        
         if (unitsSelected.Count > 0)
@@ -110,4 +111,5 @@ public class MouseClickManager : MonoBehaviour
             }
         }
     }
+    
 }
