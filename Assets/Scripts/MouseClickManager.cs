@@ -85,7 +85,7 @@ public class MouseClickManager : MonoBehaviour
             ClearUnitSelection();
         }
     }
-    void ClearUnitSelection()
+    public void ClearUnitSelection()
     {
         if (unitsSelected.Count > 0)
         {
@@ -99,7 +99,7 @@ public class MouseClickManager : MonoBehaviour
             unitsSelected.Clear();
         }
     }
-    void MoveAllUnits(GameObject landClicked)
+    public void MoveAllUnits(GameObject landClicked)
     {        
         if (unitsSelected.Count > 0)
         {

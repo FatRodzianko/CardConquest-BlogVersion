@@ -19,7 +19,7 @@ public class GameplayManager : MonoBehaviour
     [SerializeField]
     private Text unitMovementNoUnitsMovedText;
     [SerializeField]
-    private GameObject UnitMovementUI, endUnitMovementButton;
+    private GameObject UnitMovementUI, endUnitMovementButton, resetAllMovementButton;
     public bool haveUnitsMoved = false;
     // Start is called before the first frame update
     void Awake()
@@ -194,6 +194,8 @@ public class GameplayManager : MonoBehaviour
             unitMovementNoUnitsMovedText.gameObject.SetActive(true);
         if (endUnitMovementButton.activeInHierarchy)
             endUnitMovementButton.GetComponent<Image>().color = Color.white;
+        if (resetAllMovementButton.activeInHierarchy)
+            resetAllMovementButton.SetActive(false);
         // When the movement phase begins, save the land occupied by the unit to be used in movement resets
         SaveUnitStartingLocation();
 
@@ -204,6 +206,8 @@ public class GameplayManager : MonoBehaviour
             unitMovementNoUnitsMovedText.gameObject.SetActive(false);
         if (endUnitMovementButton.activeInHierarchy)
             endUnitMovementButton.GetComponent<Image>().color = Color.yellow;
+        if (!resetAllMovementButton.activeInHierarchy)
+            resetAllMovementButton.SetActive(true);
         haveUnitsMoved = true;
     }
     void SaveUnitStartingLocation()
@@ -217,6 +221,35 @@ public class GameplayManager : MonoBehaviour
             {
                 unitScript.previouslyOccupiedLand = unitScript.currentLandOccupied;
             }
+        }
+    }
+    public void ResetAllUnitMovement()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen)
+        {
+            if (resetAllMovementButton.activeInHierarchy)
+                resetAllMovementButton.SetActive(false);
+            if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
+                unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+            if (endUnitMovementButton.activeInHierarchy)
+                endUnitMovementButton.GetComponent<Image>().color = Color.white;
+
+            GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
+            foreach (Transform unitChild in unitHolder.transform)
+            {
+                UnitScript unitScript = unitChild.transform.gameObject.GetComponent<UnitScript>();
+                if (unitScript.previouslyOccupiedLand != null)
+                {
+                    Debug.Log("Unit was moved. Resetting unit movement.");
+                    if (MouseClickManager.instance.unitsSelected.Count > 0)
+                        MouseClickManager.instance.ClearUnitSelection();
+                       
+                    MouseClickManager.instance.unitsSelected.Add(unitChild.gameObject);
+                    MouseClickManager.instance.MoveAllUnits(unitScript.previouslyOccupiedLand);
+                    MouseClickManager.instance.unitsSelected.Clear();
+                }
+            }
+            haveUnitsMoved = false;
         }
     }
 
