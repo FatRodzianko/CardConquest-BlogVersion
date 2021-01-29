@@ -21,6 +21,8 @@ public class GameplayManager : MonoBehaviour
     [SerializeField]
     private GameObject UnitMovementUI, endUnitMovementButton, resetAllMovementButton;
     public bool haveUnitsMoved = false;
+    [SerializeField]
+    private GameObject showPlayerHandButton, hidePlayerHandButton;
     // Start is called before the first frame update
     void Awake()
     {
@@ -196,6 +198,8 @@ public class GameplayManager : MonoBehaviour
             endUnitMovementButton.GetComponent<Image>().color = Color.white;
         if (resetAllMovementButton.activeInHierarchy)
             resetAllMovementButton.SetActive(false);
+        if (hidePlayerHandButton.activeInHierarchy && !PlayerHand.instance.isPlayerViewingTheirHand)
+            hidePlayerHandButton.SetActive(false);
         // When the movement phase begins, save the land occupied by the unit to be used in movement resets
         SaveUnitStartingLocation();
 
@@ -251,6 +255,39 @@ public class GameplayManager : MonoBehaviour
             }
             haveUnitsMoved = false;
         }
+    }
+    public void ShowPlayerHandPressed()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen)
+        {
+            endUnitMovementButton.SetActive(false);
+            resetAllMovementButton.SetActive(false);
+            showPlayerHandButton.SetActive(false);
+            unitMovementNoUnitsMovedText.gameObject.SetActive(false);
+            hidePlayerHandButton.SetActive(true);
+            PlayerHand.instance.ShowPlayerHandOnScreen();
+        }
+
+    }
+    public void HidePlayerHandPressed()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen)
+        {
+            endUnitMovementButton.SetActive(true);
+            showPlayerHandButton.SetActive(true);
+            if (haveUnitsMoved)
+            {
+                resetAllMovementButton.SetActive(true);
+            }
+            else if (!haveUnitsMoved)
+            {
+                unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+            }
+
+            hidePlayerHandButton.SetActive(false);
+            PlayerHand.instance.HidePlayerHandOnScreen();
+        }
+
     }
 
 }

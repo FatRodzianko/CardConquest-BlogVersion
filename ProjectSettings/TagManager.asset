@@ -9,6 +9,7 @@ TagManager:
   - PlayerUnitHolder
   - PlayerBase
   - LandHolder
+  - PlayerHand
   layers:
   - Default
   - TransparentFX
@@ -45,6 +46,9 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: PlayerCards
+    uniqueID: 1197341471
     locked: 0
   - name: UI-Text
     uniqueID: 650611931

@@ -22,12 +22,16 @@ public class EscMenuManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Input.GetKeyDown(KeyCode.Escape) && PlayerHand.instance.isPlayerViewingTheirHand == false)
         {
             Debug.Log("Opening the ESC menu");
 
             IsMainMenuOpen = !IsMainMenuOpen;
             escMenuPanel.SetActive(IsMainMenuOpen);
+        }
+        else if (Input.GetKeyDown(KeyCode.Escape) && PlayerHand.instance.isPlayerViewingTheirHand == true)
+        {
+            GameplayManager.instance.HidePlayerHandPressed();
         }
     }
     void MakeInstance()
