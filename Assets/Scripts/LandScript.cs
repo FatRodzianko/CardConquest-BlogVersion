@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using Mirror;
 
-public class LandScript : MonoBehaviour
+public class LandScript : NetworkBehaviour
 {
     public List<GameObject> infantryOnLand;
     public List<GameObject> tanksOnLand;
@@ -23,11 +24,18 @@ public class LandScript : MonoBehaviour
     private GameObject cannotPlaceHereOutlineObject;
     public bool cannotPlaceHere = false;
 
+    [SyncVar(hook = nameof(HandlePlayerCanPlaceHereUpdate))] public int PlayerCanPlaceHere;
+
     // Start is called before the first frame update
-    void Awake()
+    void Start()
     {
         infantryOnLand = new List<GameObject>();
         tanksOnLand = new List<GameObject>();
+        if (PlayerCanPlaceHere == 0)
+        {
+            cannotPlaceHere = true;
+            CreateCannotPlaceHereOutline();
+        }
     }
 
     // Update is called once per frame
@@ -281,6 +289,23 @@ public class LandScript : MonoBehaviour
         if (cannotPlaceHereOutlineObject != null)
         {
             Destroy(cannotPlaceHereOutlineObject);
+        }
+    }
+    public void HandlePlayerCanPlaceHereUpdate(int oldValue, int newValue)
+    {
+        Debug.Log("PlayerCanPlaceHere updated to: " + PlayerCanPlaceHere);
+        GameObject LocalGamePlayer = GameObject.Find("LocalGamePlayer");
+        GamePlayer LocalGamePlayerScript = LocalGamePlayer.GetComponent<GamePlayer>();
+
+        if (PlayerCanPlaceHere == LocalGamePlayerScript.playerNumber)
+        {
+            cannotPlaceHere = false;
+            RemoveCannotPlaceHereOutline();
+        }
+        else
+        {
+            cannotPlaceHere = true;
+            CreateCannotPlaceHereOutline();
         }
     }
 }

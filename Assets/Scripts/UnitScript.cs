@@ -1,9 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Mirror;
 
-public class UnitScript : MonoBehaviour
+public class UnitScript : NetworkBehaviour
 {
+    [Header("Player Owner info")]
+    [SyncVar] public string ownerPlayerName;
+    [SyncVar] public int ownerConnectionId;
+    [SyncVar] public int ownerPlayerNumber;
+
     [SerializeField]
     public GameObject outline;
     public bool currentlySelected = false;

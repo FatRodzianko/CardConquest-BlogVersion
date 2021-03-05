@@ -2,21 +2,26 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using Mirror;
 
-public class PlayerHand : MonoBehaviour
+public class PlayerHand : NetworkBehaviour
 {
-    public static PlayerHand instance;
-    public List<GameObject> Hand;
-    public List<GameObject> DiscardPile;
+    [SyncVar] public string ownerPlayerName;
+    [SyncVar] public int ownerConnectionId;
+    [SyncVar] public int ownerPlayerNumber;
+
+    [SyncVar] public bool isHandInitialized = false;
+
+    public List<GameObject> Hand = new List<GameObject>();
+    public List<GameObject> DiscardPile = new List<GameObject>();
+    public SyncList<uint> HandNetId = new SyncList<uint>();
+    public SyncList<uint> DiscardPileNetId = new SyncList<uint>();
 
     public bool isPlayerViewingTheirHand = false;
+
     // Start is called before the first frame update
-    void Awake()
+    void Start()
     {
-        MakeInstance();
-        Hand = new List<GameObject>();
-        DiscardPile = new List<GameObject>();
-        InitializePlayerHand();
     }
 
     // Update is called once per frame
@@ -24,11 +29,7 @@ public class PlayerHand : MonoBehaviour
     {
         
     }
-    void MakeInstance()
-    {
-        if (instance == null)
-            instance = this;
-    }
+
     void InitializePlayerHand()
     {
         GameObject playerCardHandObject = GameObject.FindGameObjectWithTag("PlayerHand");

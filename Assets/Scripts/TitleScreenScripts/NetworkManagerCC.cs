@@ -13,9 +13,21 @@ public class NetworkManagerCC : NetworkManager
     [SerializeField] private GamePlayer gamePlayerPrefab;
     public List<LobbyPlayer> LobbyPlayers { get; } = new List<LobbyPlayer>();
     public List<GamePlayer> GamePlayers { get; } = new List<GamePlayer>();
+    public override void OnStartServer()
+    {
+        spawnPrefabs = Resources.LoadAll<GameObject>("Prefabs").ToList();
+    }
     public override void OnStartClient()
     {
         Debug.Log("Starting client...");
+        List<GameObject> spawnablePrefabs = Resources.LoadAll<GameObject>("Prefabs").ToList();
+        Debug.Log("Spawnable Prefab count: " + spawnablePrefabs.Count());
+
+        foreach (GameObject prefab in spawnablePrefabs)
+        {
+            ClientScene.RegisterPrefab(prefab);
+            Debug.Log("Registering prefab: " + prefab);
+        }
     }
     public override void OnClientConnect(NetworkConnection conn)
     {
@@ -55,6 +67,7 @@ public class NetworkManagerCC : NetworkManager
 
             lobbyPlayerInstance.IsGameLeader = isGameLeader;
             lobbyPlayerInstance.ConnectionId = conn.connectionId;
+            lobbyPlayerInstance.playerNumber = LobbyPlayers.Count + 1;
 
             NetworkServer.AddPlayerForConnection(conn, lobbyPlayerInstance.gameObject);
             Debug.Log("Player added. Player name: " + lobbyPlayerInstance.PlayerName + ". Player connection id: " + lobbyPlayerInstance.ConnectionId.ToString());
@@ -91,6 +104,7 @@ public class NetworkManagerCC : NetworkManager
 
                 gamePlayerInstance.SetPlayerName(LobbyPlayers[i].PlayerName);
                 gamePlayerInstance.SetConnectionId(LobbyPlayers[i].ConnectionId);
+                gamePlayerInstance.SetPlayerNumber(LobbyPlayers[i].playerNumber);
 
                 NetworkServer.Destroy(conn.identity.gameObject);
                 NetworkServer.ReplacePlayerForConnection(conn, gamePlayerInstance.gameObject, true);

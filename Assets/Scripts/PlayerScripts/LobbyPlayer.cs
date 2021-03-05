@@ -9,6 +9,7 @@ public class LobbyPlayer : NetworkBehaviour
 {
     [SyncVar(hook = nameof(HandlePlayerNameUpdate))] public string PlayerName;
     [SyncVar] public int ConnectionId;
+    [SyncVar] public int playerNumber;
 
     [Header("Game Info")]
     public bool IsGameLeader = false;

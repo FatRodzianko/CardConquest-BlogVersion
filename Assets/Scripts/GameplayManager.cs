@@ -23,8 +23,12 @@ public class GameplayManager : MonoBehaviour
     public bool haveUnitsMoved = false;
     [SerializeField]
     private GameObject showPlayerHandButton, hidePlayerHandButton;
+
+    [Header("GamePlayers")]
+    [SerializeField] private GameObject LocalGamePlayer;
+    [SerializeField] private GamePlayer LocalGamePlayerScript;
     // Start is called before the first frame update
-    void Awake()
+    void Start()
     {
         MakeInstance();
         infToPlace = new List<GameObject>();
@@ -33,8 +37,12 @@ public class GameplayManager : MonoBehaviour
         currentGamePhase = "Unit Placement";
         SetGamePhaseText();
         ActivateUnitPlacementUI();
-        PutUnitsInUnitBox();
-        LimitUserPlacementByDistanceToBase();
+        //PutUnitsInUnitBox();
+        //LimitUserPlacementByDistanceToBase();
+        GetLocalGamePlayer();
+        SpawnPlayerUnits();
+        SpawnPlayerCards();
+        GetPlayerBase();
     }
 
     // Update is called once per frame
@@ -198,7 +206,7 @@ public class GameplayManager : MonoBehaviour
             endUnitMovementButton.GetComponent<Image>().color = Color.white;
         if (resetAllMovementButton.activeInHierarchy)
             resetAllMovementButton.SetActive(false);
-        if (hidePlayerHandButton.activeInHierarchy && !PlayerHand.instance.isPlayerViewingTheirHand)
+        if (hidePlayerHandButton.activeInHierarchy)
             hidePlayerHandButton.SetActive(false);
         // When the movement phase begins, save the land occupied by the unit to be used in movement resets
         SaveUnitStartingLocation();
@@ -265,7 +273,7 @@ public class GameplayManager : MonoBehaviour
             showPlayerHandButton.SetActive(false);
             unitMovementNoUnitsMovedText.gameObject.SetActive(false);
             hidePlayerHandButton.SetActive(true);
-            PlayerHand.instance.ShowPlayerHandOnScreen();
+            //PlayerHand.instance.ShowPlayerHandOnScreen();
         }
 
     }
@@ -285,9 +293,29 @@ public class GameplayManager : MonoBehaviour
             }
 
             hidePlayerHandButton.SetActive(false);
-            PlayerHand.instance.HidePlayerHandOnScreen();
+            //PlayerHand.instance.HidePlayerHandOnScreen();
         }
 
+    }
+    void GetLocalGamePlayer()
+    {
+        LocalGamePlayer = GameObject.Find("LocalGamePlayer");
+        LocalGamePlayerScript = LocalGamePlayer.GetComponent<GamePlayer>();
+    }
+    void SpawnPlayerUnits()
+    {
+        Debug.Log("Spawn units for: " + LocalGamePlayerScript.PlayerName);
+        LocalGamePlayerScript.SpawnPlayerUnits();
+    }
+    void SpawnPlayerCards()
+    {
+        Debug.Log("Spawn cards for: " + LocalGamePlayerScript.PlayerName);
+        LocalGamePlayerScript.SpawnPlayerCards();
+    }
+    void GetPlayerBase()
+    {
+        Debug.Log("Finding player base for: " + LocalGamePlayerScript.PlayerName);
+        LocalGamePlayerScript.GetPlayerBase();
     }
 
 }
