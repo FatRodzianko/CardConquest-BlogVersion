@@ -27,11 +27,13 @@ public class GamePlayer : NetworkBehaviour
     public GameObject myUnitHolder;
     public GameObject myPlayerCardHand;
     [SyncVar] public GameObject myPlayerBase;
+    public SyncList<uint> playerUnitNetIds = new SyncList<uint>();
 
     [Header("Player Statuses")]
     [SyncVar] public bool HaveSpawnedUnits = false;
     [SyncVar] public bool HaveSpawnedCards = false;
     [SyncVar] public bool GotPlayerBase = false;
+    [SyncVar(hook = nameof(HandlePlayerReadyStatusUpdate))] public bool ReadyForNextPhase = false;
 
     private NetworkManagerCC game;
     private NetworkManagerCC Game
@@ -123,6 +125,7 @@ public class GamePlayer : NetworkBehaviour
                 unitScript.ownerConnectionId = requestingPlayer.ConnectionId;
                 unitScript.ownerPlayerNumber = requestingPlayer.playerNumber;
                 NetworkServer.Spawn(playerInfantry, connectionToClient);
+                requestingPlayer.playerUnitNetIds.Add(playerInfantry.GetComponent<NetworkIdentity>().netId);
             }
             //Spawn player1 tanks
             for (int i = 0; i < 4; i++)
@@ -133,6 +136,7 @@ public class GamePlayer : NetworkBehaviour
                 unitScript.ownerConnectionId = requestingPlayer.ConnectionId;
                 unitScript.ownerPlayerNumber = requestingPlayer.playerNumber;
                 NetworkServer.Spawn(playerTank, connectionToClient);
+                requestingPlayer.playerUnitNetIds.Add(playerTank.GetComponent<NetworkIdentity>().netId);
             }
             requestingPlayer.HaveSpawnedUnits = true;
             //Tell all clients to "show" the PlayerUnitHolder - set the correct parent to all the unity holders and run GameplayManager's PutUnitsInUnitBox
@@ -155,6 +159,7 @@ public class GamePlayer : NetworkBehaviour
                 unitScript.ownerConnectionId = requestingPlayer.ConnectionId;
                 unitScript.ownerPlayerNumber = requestingPlayer.playerNumber;
                 NetworkServer.Spawn(playerInfantry, connectionToClient);
+                requestingPlayer.playerUnitNetIds.Add(playerInfantry.GetComponent<NetworkIdentity>().netId);
             }
             //Spawn player1 tanks
             for (int i = 0; i < 4; i++)
@@ -165,6 +170,7 @@ public class GamePlayer : NetworkBehaviour
                 unitScript.ownerConnectionId = requestingPlayer.ConnectionId;
                 unitScript.ownerPlayerNumber = requestingPlayer.playerNumber;
                 NetworkServer.Spawn(playerTank, connectionToClient);
+                requestingPlayer.playerUnitNetIds.Add(playerTank.GetComponent<NetworkIdentity>().netId);
             }
             requestingPlayer.HaveSpawnedUnits = true;
             RpcShowSpawnedPlayerUnits(playerUnitHolder);
@@ -207,7 +213,7 @@ public class GamePlayer : NetworkBehaviour
                     tank.transform.SetParent(playerUnitHolder.transform);
                 }
             }
-            //GameplayManager.instance.PutUnitsInUnitBox();
+            GameplayManager.instance.PutUnitsInUnitBox();
         }
         else
         {
@@ -407,6 +413,113 @@ public class GamePlayer : NetworkBehaviour
                     this.GotPlayerBase = true;
                     Debug.Log("Found playerbase for: " + this.PlayerName);
                 }
+            }
+        }
+    }
+    public void SetCurrentGamePhase()
+    {
+        if (hasAuthority)
+            CmdGetCurrentGamePhaseFromServer();
+    }
+    [Command]
+    void CmdGetCurrentGamePhaseFromServer()
+    {
+        TargetSetCurrentGamePhase(connectionToClient, Game.CurrentGamePhase);
+    }
+    [TargetRpc]
+    void TargetSetCurrentGamePhase(NetworkConnection target, string serverGamePhase)
+    {
+        Debug.Log("Current game phase fromthe server is: " + serverGamePhase);
+        GameplayManager.instance.currentGamePhase = serverGamePhase;
+        GameplayManager.instance.SetGamePhaseText();
+    }
+    public void ChangeReadyForNextPhaseStatus()
+    {
+        if (hasAuthority)
+        {
+            CmdChangeReadyForNextPhaseStatus();
+        }
+    }
+    [Command]
+    void CmdChangeReadyForNextPhaseStatus()
+    {
+        Debug.Log("Running CmdChangeReadyForNextPhaseStatus on the server.");
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+        requestingPlayer.ReadyForNextPhase = !requestingPlayer.ReadyForNextPhase;
+        CheckIfAllPlayersAreReadyForNextPhase();
+    }
+    [Server]
+    void CheckIfAllPlayersAreReadyForNextPhase()
+    {
+        bool allPlayersReady = false;
+        foreach (GamePlayer gamePlayer in Game.GamePlayers)
+        {
+            if (!gamePlayer.ReadyForNextPhase)
+            {
+                allPlayersReady = false;
+                break;
+            }
+            else
+            {
+                allPlayersReady = true;
+            }
+        }
+        if (allPlayersReady)
+        {
+            if (Game.CurrentGamePhase == "Unit Placement")
+                Game.CurrentGamePhase = "Unit Movement";
+            RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+        }
+        else
+        {
+            RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+        }
+    }
+    [ClientRpc]
+    void RpcAdvanceToNextPhase(bool allPlayersReady, string newGamePhase)
+    {
+        Debug.Log("Are all players ready for next phase?: " + allPlayersReady);
+        if (allPlayersReady)
+        {
+            Debug.Log("Advancing phase from player: " + this.PlayerName);
+            GameplayManager.instance.ChangeGamePhase(newGamePhase);
+        }
+    }
+    public void HandlePlayerReadyStatusUpdate(bool oldValue, bool newValue)
+    {
+        Debug.Log("Player ready status has been has been updated for " + this.PlayerName + ": " + oldValue + " to new value: " + newValue);
+        if (hasAuthority)
+        {
+            GameplayManager.instance.UpdateReadyButton();
+        }
+        GameplayManager.instance.UpdatePlayerReadyText(this.PlayerName, this.ReadyForNextPhase);
+    }
+    public void UpdateUnitPositions()
+    {
+        if (hasAuthority)
+            CmdUpdateUnitPositions();
+    }
+    [Command]
+    void CmdUpdateUnitPositions()
+    {
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+        GameObject[] PlayerUnitHolders = GameObject.FindGameObjectsWithTag("PlayerUnitHolder");
+        foreach (GameObject unitHolder in PlayerUnitHolders)
+        {
+            PlayerUnitHolder unitHolderScript = unitHolder.GetComponent<PlayerUnitHolder>();
+            if (unitHolderScript.ownerConnectionId == requestingPlayer.ConnectionId)
+            {
+                foreach (Transform unitChild in unitHolder.transform)
+                {
+                    UnitScript unitScript = unitChild.transform.gameObject.GetComponent<UnitScript>();
+                    if (unitScript.ownerConnectionId == requestingPlayer.ConnectionId && unitScript.startingPosition != unitScript.newPosition)
+                    {
+                        unitScript.startingPosition = unitScript.newPosition;
+                    }
+                }
+                break;
             }
         }
     }

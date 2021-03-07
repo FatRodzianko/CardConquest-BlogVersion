@@ -15,6 +15,8 @@ public class GameplayManager : MonoBehaviour
     private Text GamePhaseText;
     [SerializeField]
     private GameObject UnitPlacementUI, endUnitPlacementButton;
+    [SerializeField] Text PlayerReadyText;
+    public List<string> readyPlayers = new List<string>();
 
     [SerializeField]
     private Text unitMovementNoUnitsMovedText;
@@ -34,12 +36,13 @@ public class GameplayManager : MonoBehaviour
         infToPlace = new List<GameObject>();
         tanksToPlace = new List<GameObject>();
 
-        currentGamePhase = "Unit Placement";
-        SetGamePhaseText();
-        ActivateUnitPlacementUI();
+        //currentGamePhase = "Unit Placement";
+        //SetGamePhaseText();
+        //ActivateUnitPlacementUI();
         //PutUnitsInUnitBox();
         //LimitUserPlacementByDistanceToBase();
         GetLocalGamePlayer();
+        GetCurrentGamePhase();
         SpawnPlayerUnits();
         SpawnPlayerCards();
         GetPlayerBase();
@@ -55,9 +58,11 @@ public class GameplayManager : MonoBehaviour
         if (instance == null)
             instance = this;
     }
-    void SetGamePhaseText()
+    public void SetGamePhaseText()
     {
         GamePhaseText.text = currentGamePhase;
+        if (currentGamePhase == "Unit Placement")
+            ActivateUnitPlacementUI();
     }
     void ActivateUnitPlacementUI()
     {
@@ -70,86 +75,99 @@ public class GameplayManager : MonoBehaviour
         if (UnitMovementUI.activeInHierarchy)
             UnitMovementUI.SetActive(false);
     }
-    void PutUnitsInUnitBox()
+    public void PutUnitsInUnitBox()
     {
-        GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
+        GameObject[] PlayerUnitHolders = GameObject.FindGameObjectsWithTag("PlayerUnitHolder");
 
-        foreach (Transform unitChild in unitHolder.transform)
+        foreach (GameObject unitHolder in PlayerUnitHolders)
         {
-            if (unitChild.transform.tag == "infantry")
+            PlayerUnitHolder unitHolderScript = unitHolder.GetComponent<PlayerUnitHolder>();
+            if (unitHolderScript.ownerConnectionId == LocalGamePlayerScript.ConnectionId)
             {
-                infToPlace.Add(unitChild.gameObject);
-            }
-            else if (unitChild.transform.tag == "tank")
-            {
-                tanksToPlace.Add(unitChild.gameObject);
-            }
+                foreach (Transform unitChild in unitHolder.transform)
+                {
+                    if (unitChild.transform.tag == "infantry")
+                    {
+                        infToPlace.Add(unitChild.gameObject);
+                    }
+                    else if (unitChild.transform.tag == "tank")
+                    {
+                        tanksToPlace.Add(unitChild.gameObject);
+                    }
 
+                }
+                //Begin moving the units into the unit box
+                for (int i = 0; i < tanksToPlace.Count; i++)
+                {
+                    if (i == 0)
+                    {
+                        Vector3 temp = new Vector3(-14.0f, 8.25f, 0f);
+                        tanksToPlace[i].transform.position = temp;
+                    }
+                    else
+                    {
+                        int previousTank = i - 1;
+                        Vector3 temp = tanksToPlace[previousTank].transform.position;
+                        temp.x += 1.0f;
+                        tanksToPlace[i].transform.position = temp;
+                    }
+                }
+                for (int i = 0; i < infToPlace.Count; i++)
+                {
+                    if (i == 0)
+                    {
+                        Vector3 temp = new Vector3(-14.25f, 7.25f, 0f);
+                        infToPlace[i].transform.position = temp;
+                    }
+                    else
+                    {
+                        int previousInf = i - 1;
+                        Vector3 temp = infToPlace[previousInf].transform.position;
+                        temp.x += 0.8f;
+                        infToPlace[i].transform.position = temp;
+                    }
+                }
+                //end moving units into unit box
+                break;
+            }
         }
-        //Begin moving the units into the unit box
-        for (int i = 0; i < tanksToPlace.Count; i++)
-        {
-            if (i == 0)
-            {
-                Vector3 temp = new Vector3(-14.0f, 8.25f, 0f);
-                tanksToPlace[i].transform.position = temp;
-            }
-            else
-            {
-                int previousTank = i - 1;
-                Vector3 temp = tanksToPlace[previousTank].transform.position;
-                temp.x += 1.0f;
-                tanksToPlace[i].transform.position = temp;
-            }
-        }
-        for (int i = 0; i < infToPlace.Count; i++)
-        {
-            if (i == 0)
-            {
-                Vector3 temp = new Vector3(-14.25f, 7.25f, 0f);
-                infToPlace[i].transform.position = temp;
-            }
-            else
-            {
-                int previousInf = i - 1;
-                Vector3 temp = infToPlace[previousInf].transform.position;
-                temp.x += 0.8f;
-                infToPlace[i].transform.position = temp;
-            }
-        }
-        //end moving units into unit box
     }
     public void CheckIfAllUnitsHaveBeenPlaced()
     {
-        GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
-        bool allPlaced = false;
-        foreach (Transform unitChild in unitHolder.transform)
+        Debug.Log("Running CheckIfAllUnitsHaveBeenPlaced()");
+
+        GameObject[] PlayerUnitHolders = GameObject.FindGameObjectsWithTag("PlayerUnitHolder");
+        foreach (GameObject unitHolder in PlayerUnitHolders)
         {
-            if (!unitChild.gameObject.GetComponent<UnitScript>().placedDuringUnitPlacement)
+            PlayerUnitHolder unitHolderScript = unitHolder.GetComponent<PlayerUnitHolder>();
+            if (unitHolderScript.ownerConnectionId == LocalGamePlayerScript.ConnectionId)
             {
-                allPlaced = false;
-                break;
+                bool allPlaced = false;
+                foreach (Transform unitChild in unitHolder.transform)
+                {
+                    if (!unitChild.gameObject.GetComponent<UnitScript>().placedDuringUnitPlacement)
+                    {
+                        allPlaced = false;
+                        break;
+                    }
+                    else
+                        allPlaced = true;
+                }
+                if (allPlaced)
+                {
+                    endUnitPlacementButton.SetActive(true);
+                }
             }
-            else
-                allPlaced = true;
-        }
-        if (allPlaced)
-        {
-            endUnitPlacementButton.SetActive(true);
         }
     }
     public void EndUnitPlacementPhase()
     {
-        if (!EscMenuManager.instance.IsMainMenuOpen)
-        {
-            currentGamePhase = "Unit Movement";
-            Camera.main.orthographicSize = 7;
-            SetGamePhaseText();
-            UnitPlacementUI.SetActive(false);
-            RemoveCannotPlaceHereOutlines();
-            StartUnitMovementPhase();
-        }
-
+        Camera.main.orthographicSize = 7;
+        SetGamePhaseText();
+        UnitPlacementUI.SetActive(false);
+        RemoveCannotPlaceHereOutlines();
+        LocalGamePlayerScript.ChangeReadyForNextPhaseStatus();
+        StartUnitMovementPhase();
     }
     void LimitUserPlacementByDistanceToBase()
     {
@@ -186,14 +204,16 @@ public class GameplayManager : MonoBehaviour
     }
     public void StartUnitMovementPhase()
     {
-        if (!EscMenuManager.instance.IsMainMenuOpen)
+        Debug.Log("Starting the Unit Movement Phase.");
+        haveUnitsMoved = false;
+        ActivateUnitMovementUI();
+        SaveUnitStartingLocation();
+        LocalGamePlayerScript.UpdateUnitPositions();
+        GameObject[] allPlayerHands = GameObject.FindGameObjectsWithTag("PlayerHand");
+        foreach (GameObject playerHand in allPlayerHands)
         {
-            Debug.Log("Starting the Unit Movement Phase.");
-            haveUnitsMoved = false;
-            ActivateUnitMovementUI();
-            SaveUnitStartingLocation();
+            playerHand.GetComponent<PlayerHand>().InitializePlayerHand();
         }
-
     }
     void ActivateUnitMovementUI()
     {
@@ -316,6 +336,66 @@ public class GameplayManager : MonoBehaviour
     {
         Debug.Log("Finding player base for: " + LocalGamePlayerScript.PlayerName);
         LocalGamePlayerScript.GetPlayerBase();
+    }
+    void GetCurrentGamePhase()
+    {
+        LocalGamePlayerScript.SetCurrentGamePhase();
+    }
+    public void ChangePlayerReadyStatus()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen)
+            LocalGamePlayerScript.ChangeReadyForNextPhaseStatus();
+    }
+    public void ChangeGamePhase(string newGamePhase)
+    {
+        currentGamePhase = newGamePhase;
+        if (newGamePhase == "Unit Movement")
+            EndUnitPlacementPhase();
+    }
+    public void UpdateReadyButton()
+    {
+        if (currentGamePhase == "Unit Placement")
+        {
+            if (LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                Debug.Log("Local Player is ready to go to next phase.");
+                endUnitPlacementButton.GetComponentInChildren<Text>().text = "Unready";
+            }
+            else
+            {
+                Debug.Log("Local Player IS NOT ready to go to next phase.");
+                endUnitPlacementButton.GetComponentInChildren<Text>().text = "Done Placing Units";
+            }
+        }
+    }
+    public void UpdatePlayerReadyText(string playerName, bool isPlayerReady)
+    {
+        if (isPlayerReady)
+        {
+            readyPlayers.Add(playerName);
+
+            if (!PlayerReadyText.gameObject.activeInHierarchy)
+            {
+                PlayerReadyText.gameObject.SetActive(true);
+            }
+        }
+        else
+        {
+            readyPlayers.Remove(playerName);
+            if (readyPlayers.Count == 0)
+            {
+                PlayerReadyText.gameObject.SetActive(false);
+                PlayerReadyText.text = "";
+            }
+        }
+        if (readyPlayers.Count > 0)
+        {
+            PlayerReadyText.text = "Players Ready:";
+            foreach (string player in readyPlayers)
+            {
+                PlayerReadyText.text += " " + player;
+            }
+        }
     }
 
 }

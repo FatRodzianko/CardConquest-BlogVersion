@@ -13,6 +13,7 @@ public class NetworkManagerCC : NetworkManager
     [SerializeField] private GamePlayer gamePlayerPrefab;
     public List<LobbyPlayer> LobbyPlayers { get; } = new List<LobbyPlayer>();
     public List<GamePlayer> GamePlayers { get; } = new List<GamePlayer>();
+    public string CurrentGamePhase;
     public override void OnStartServer()
     {
         spawnPrefabs = Resources.LoadAll<GameObject>("Prefabs").ToList();
@@ -109,7 +110,8 @@ public class NetworkManagerCC : NetworkManager
                 NetworkServer.Destroy(conn.identity.gameObject);
                 NetworkServer.ReplacePlayerForConnection(conn, gamePlayerInstance.gameObject, true);
                 Debug.Log("Spawned new GamePlayer.");
-            }            
+            }
+            CurrentGamePhase = "Unit Placement";
         }
         base.ServerChangeScene(newSceneName);
     }

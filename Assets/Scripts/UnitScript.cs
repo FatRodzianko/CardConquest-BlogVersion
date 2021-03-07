@@ -10,12 +10,18 @@ public class UnitScript : NetworkBehaviour
     [SyncVar] public int ownerConnectionId;
     [SyncVar] public int ownerPlayerNumber;
 
+    [Header("Unit Selection")]
     [SerializeField]
     public GameObject outline;
     public bool currentlySelected = false;
 
+    [Header("Occupied Land Tiles")]
     public GameObject currentLandOccupied;
     public GameObject previouslyOccupiedLand;
+
+    [Header("Position on Map")]
+    [SyncVar] public Vector3 newPosition;
+    [SyncVar(hook = nameof(HandleMoveUnitToStartingPosition))] public Vector3 startingPosition;
 
     [SerializeField]
     private LayerMask landLayer;
@@ -69,6 +75,8 @@ public class UnitScript : NetworkBehaviour
             temp.y -= 0.5f;
             gameObject.transform.position = temp;
         }
+        if (GameplayManager.instance.currentGamePhase == "Unit Placement")
+            placedDuringUnitPlacement = true;
         UpdateUnitLandObject(LandToMoveTo);
     }
 
@@ -192,5 +200,124 @@ public class UnitScript : NetworkBehaviour
             }
         }
         return canMove;
+    }
+    public void AskServerCanUnitsMove(GameObject landUserClicked, Vector3 positionToMoveTo, List<GameObject> unitsSelected)
+    {
+        if (hasAuthority)
+            CmdServerCanUnitsMove(landUserClicked, positionToMoveTo, unitsSelected);
+    }
+    [Command]
+    public void CmdServerCanUnitsMove(GameObject landUserClicked, Vector3 positionToMoveTo, List<GameObject> unitsSelected)
+    {
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+
+        int totalUnitsToMove = unitsSelected.Count;
+
+        LandScript landScript = landUserClicked.GetComponent<LandScript>();
+        foreach (uint unitId in landScript.UnitNetIdsOnLand)
+        {
+            if (requestingPlayer.playerUnitNetIds.Contains(unitId))
+            {
+                totalUnitsToMove++;
+            }
+        }
+        Debug.Log("Running CmdServerCanUnitsMove for: " + connectionToClient.ToString());
+        Debug.Log("Player is requesting to move this many units: " + totalUnitsToMove + " to this land object: " + landUserClicked + " located at: " + positionToMoveTo);
+        if (landUserClicked.transform.position != positionToMoveTo)
+        {
+            Debug.Log("CmdServerCanUnitsMove: Position of landUserClicked and positionToMoveTo don't match. landUserClicked: " + landUserClicked.transform.position + " positionToMoveTo: " + positionToMoveTo);
+            TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
+            return;
+        }
+        if (totalUnitsToMove > 5)
+        {
+            Debug.Log("CmdServerCanUnitsMove: Too many units to move: " + totalUnitsToMove);
+            TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
+            return;
+        }
+        if (GameplayManager.instance.currentGamePhase == "Unit Placement")
+        {
+            if (landScript.PlayerCanPlaceHere != requestingPlayer.playerNumber)
+            {
+                Debug.Log("CmdServerCanUnitsMove: Player cannot place here. Too far from base: " + requestingPlayer.PlayerName);
+                TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
+                return;
+            }
+            else
+            {
+                Debug.Log("CmdServerCanUnitsMove: Player can move this unit!:  " + requestingPlayer.PlayerName + " " + this.gameObject);
+                TargetReturnCanUnitsMove(connectionToClient, true, landUserClicked, positionToMoveTo);
+                return;
+            }
+        }
+        TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
+        return;
+    }
+    [TargetRpc]
+    public void TargetReturnCanUnitsMove(NetworkConnection target, bool serverCanMove, GameObject landUserClicked, Vector3 positionToMoveTo)
+    {
+        Debug.Log("serverCanMoveInt received. Value: " + serverCanMove.ToString());
+        if (serverCanMove)
+        {
+            MoveAllUnits(landUserClicked, positionToMoveTo);
+        }
+        else if (!serverCanMove)
+        {
+            MouseClickManager.instance.ClearUnitSelection();
+        }
+    }
+    void MoveAllUnits(GameObject landUserClicked, Vector3 positionToMoveTo)
+    {
+        if (hasAuthority)
+        {
+            Debug.Log("All units can move! Telling server to update newPosition value");
+            foreach (GameObject unit in MouseClickManager.instance.unitsSelected)
+            {
+                CmdUpdateUnitNewPosition(unit, positionToMoveTo, landUserClicked);
+            }
+            MouseClickManager.instance.MoveAllUnits(landUserClicked);
+            MouseClickManager.instance.ClearUnitSelection();
+        }
+    }
+    [Command]
+    void CmdUpdateUnitNewPosition(GameObject unit, Vector3 newPosition, GameObject landClicked)
+    {
+        UnitScript unitScript = unit.GetComponent<UnitScript>();
+        unitScript.newPosition = newPosition;
+        uint unitNetId = unit.GetComponent<NetworkIdentity>().netId;
+
+        //check for unit's previous location on a land tile and remove its netid
+        GameObject LandTileHolder = GameObject.FindGameObjectWithTag("LandHolder");
+        foreach (Transform landObject in LandTileHolder.transform)
+        {
+            LandScript landChildScript = landObject.gameObject.GetComponent<LandScript>();
+            if (landChildScript.UnitNetIdsOnLand.Count > 0)
+            {
+                if (landChildScript.UnitNetIdsOnLand.Contains(unitNetId))
+                {
+                    Debug.Log("Unit network id: " + unitNetId + " found on land object: " + landObject);
+                    landChildScript.UnitNetIdsOnLand.RemoveAll(x => x.Equals(unitNetId));
+                    break;
+                }
+            }
+        }
+
+        LandScript landScript = landClicked.GetComponent<LandScript>();
+        landScript.UnitNetIdsOnLand.Add(unitNetId);
+    }
+    public void HandleMoveUnitToStartingPosition(Vector3 oldValue, Vector3 newValue)
+    {
+        if (!hasAuthority)
+        {
+            GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
+            foreach (Transform land in landHolder.transform)
+            {
+                if (land.transform.position == this.startingPosition)
+                {
+                    MoveUnit(land.gameObject);
+                }
+            }
+        }
     }
 }

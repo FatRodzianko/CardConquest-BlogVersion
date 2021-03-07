@@ -70,13 +70,7 @@ public class MouseClickManager : MonoBehaviour
             }
             else if (rayHitLand.collider != null && unitsSelected.Count > 0 && rayHitUnit.collider == null) // if the player has selected units previously and clicks on a land, check if the units can be moved)
             {
-                if (unitsSelected[0].GetComponent<UnitScript>().CanAllSelectedUnitsMove(rayHitLand.collider.gameObject))
-                {
-                    MoveAllUnits(rayHitLand.collider.gameObject);
-                    if(GameplayManager.instance.currentGamePhase == "Unit Movement")
-                        GameplayManager.instance.UnitsHaveMoved();
-                }                
-                ClearUnitSelection();
+                unitsSelected[0].GetComponent<UnitScript>().AskServerCanUnitsMove(rayHitLand.collider.gameObject, rayHitLand.collider.gameObject.transform.position, unitsSelected);
             }
         }
         if (Input.GetMouseButtonDown(1) && EscMenuManager.instance.IsMainMenuOpen == false)
@@ -109,6 +103,10 @@ public class MouseClickManager : MonoBehaviour
                 UnitScript unitScript = unit.GetComponent<UnitScript>();
                 unitScript.MoveUnit(landClicked);
             }
+            if (GameplayManager.instance.currentGamePhase == "Unit Placement")
+                GameplayManager.instance.CheckIfAllUnitsHaveBeenPlaced();
+            if (GameplayManager.instance.currentGamePhase == "Unit Movement")
+                GameplayManager.instance.UnitsHaveMoved();
         }
     }
     

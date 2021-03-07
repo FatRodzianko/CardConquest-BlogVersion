@@ -8,6 +8,7 @@ public class LandScript : NetworkBehaviour
 {
     public List<GameObject> infantryOnLand;
     public List<GameObject> tanksOnLand;
+    public SyncList<uint> UnitNetIdsOnLand = new SyncList<uint>();
 
     public bool multipleUnitsOnLand = false;
 

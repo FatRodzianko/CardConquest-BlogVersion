@@ -30,15 +30,41 @@ public class PlayerHand : NetworkBehaviour
         
     }
 
-    void InitializePlayerHand()
+    public void InitializePlayerHand()
     {
-        GameObject playerCardHandObject = GameObject.FindGameObjectWithTag("PlayerHand");
-        foreach (Transform cardChild in playerCardHandObject.transform)
+        if (!isHandInitialized)
         {
-            Hand.Add(cardChild.gameObject);
+            GameObject[] allCards = GameObject.FindGameObjectsWithTag("Card");
+            foreach (GameObject card in allCards)
+            {
+                Card cardScript = card.GetComponent<Card>();
+                if (cardScript.ownerConnectionId == this.ownerConnectionId)
+                {
+                    this.Hand.Add(card);
+                }
+            }
+            Hand = Hand.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
+            CmdInitializePlayerHand();
+            Debug.Log("Hand initialized for: " + ownerPlayerName);
         }
-        // Sort the hand based on the power?
-        Hand = Hand.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
+    }
+    [Command]
+    void CmdInitializePlayerHand()
+    {
+        if (!this.isHandInitialized)
+        {
+            GameObject[] allCards = GameObject.FindGameObjectsWithTag("Card");
+            foreach (GameObject card in allCards)
+            {
+                Card cardScript = card.GetComponent<Card>();
+                if (cardScript.ownerConnectionId == this.ownerConnectionId)
+                {
+                    this.HandNetId.Add(card.GetComponent<NetworkIdentity>().netId);
+                }
+            }
+            this.isHandInitialized = true;
+            Debug.Log("Hand initialized for: " + ownerPlayerName);
+        }
     }
     public void ShowPlayerHandOnScreen()
     {
