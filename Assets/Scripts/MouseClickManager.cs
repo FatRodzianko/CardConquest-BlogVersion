@@ -13,11 +13,16 @@ public class MouseClickManager : MonoBehaviour
     private LayerMask landLayer;
 
     public static MouseClickManager instance;
+
+    [Header("GamePlayers")]
+    [SerializeField] private GameObject LocalGamePlayer;
+    [SerializeField] private GamePlayer LocalGamePlayerScript;
     // Start is called before the first frame update
     void Start()
     {
         MakeInstance();
         unitsSelected = new List<GameObject>();
+        GetLocalGamePlayer();
     }
     void MakeInstance()
     {
@@ -35,9 +40,37 @@ public class MouseClickManager : MonoBehaviour
             RaycastHit2D rayHitUnit = Physics2D.Raycast(mousePosition2d, Vector2.zero, Mathf.Infinity, unitLayer);
             RaycastHit2D rayHitLand = Physics2D.Raycast(mousePosition2d, Vector2.zero, Mathf.Infinity, landLayer);
 
+            bool playerViewingHand = false;
+            try
+            {
+                playerViewingHand = LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand;
+            }
+            catch
+            {
+                Debug.Log("Can't access PlayerHand");
+            }
+            bool playerViewingOpponentHand = false;
+            try
+            {
+                playerViewingOpponentHand = GameplayManager.instance.isPlayerViewingOpponentHand;
+            }
+            catch
+            {
+                Debug.Log("Can't access GameplayManager");
+            }
+            bool playerReadyForNextPhase = false;
+            try
+            {
+                playerReadyForNextPhase = LocalGamePlayerScript.ReadyForNextPhase;
+            }
+            catch
+            {
+                Debug.Log("Can't access LocalGamePlayer");
+            }
+
             if (rayHitUnit.collider != null)
             {
-                if (rayHitUnit.collider.gameObject.GetComponent<NetworkIdentity>().hasAuthority)
+                if (rayHitUnit.collider.gameObject.GetComponent<NetworkIdentity>().hasAuthority && !playerViewingHand && !playerViewingOpponentHand && !playerReadyForNextPhase)
                 {
                     UnitScript unitScript = rayHitUnit.collider.GetComponent<UnitScript>();
                     if (!unitScript.currentlySelected)
@@ -114,5 +147,10 @@ public class MouseClickManager : MonoBehaviour
                 GameplayManager.instance.UnitsHaveMoved();
         }
     }
-    
+    void GetLocalGamePlayer()
+    {
+        LocalGamePlayer = GameObject.Find("LocalGamePlayer");
+        LocalGamePlayerScript = LocalGamePlayer.GetComponent<GamePlayer>();
+    }
+
 }

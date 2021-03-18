@@ -24,12 +24,29 @@ public class GameplayManager : MonoBehaviour
     [SerializeField]
     private GameObject UnitMovementUI, endUnitMovementButton, resetAllMovementButton;
     public bool haveUnitsMoved = false;
-    [SerializeField]
-    private GameObject showPlayerHandButton, hidePlayerHandButton;
+
+    [Header("Your Hand Buttons")]
+    [SerializeField] private GameObject showPlayerHandButton;
+    [SerializeField] private GameObject hidePlayerHandButton;
+    [SerializeField] private GameObject showPlayerDiscardButton;
+
+    [Header("Other Player Hand Buttons")]
+    [SerializeField] private GameObject showOpponentCardButton;
+    [SerializeField] private GameObject hideOpponentCardButton;
+    [SerializeField] private GameObject opponentHandButtonPrefab;
+    [SerializeField] private GameObject opponentDiscardButtonPrefab;
+    public List<GameObject> opponentHandButtons = new List<GameObject>();
+
+    public bool gamePlayerHandButtonsCreated = false;
 
     [Header("GamePlayers")]
     [SerializeField] private GameObject LocalGamePlayer;
     [SerializeField] private GamePlayer LocalGamePlayerScript;
+
+    [Header("Player Statuses")]
+    public bool isPlayerViewingOpponentHand = false;
+    public GameObject playerHandBeingViewed = null;
+
     // Start is called before the first frame update
     private void Awake()
     {
@@ -221,6 +238,8 @@ public class GameplayManager : MonoBehaviour
     {
         Debug.Log("Starting the Unit Movement Phase.");
         haveUnitsMoved = false;
+        if (MouseClickManager.instance.unitsSelected.Count > 0)
+            MouseClickManager.instance.ClearUnitSelection();
         ActivateUnitMovementUI();
         SaveUnitStartingLocation();
         LocalGamePlayerScript.UpdateUnitPositions();
@@ -237,14 +256,45 @@ public class GameplayManager : MonoBehaviour
             UnitMovementUI.SetActive(true);
         if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
             unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+        if (!endUnitMovementButton.activeInHierarchy)
+            endUnitMovementButton.SetActive(true);
         if (endUnitMovementButton.activeInHierarchy)
             endUnitMovementButton.GetComponent<Image>().color = Color.white;
         if (resetAllMovementButton.activeInHierarchy)
             resetAllMovementButton.SetActive(false);
+        //if (hidePlayerHandButton.activeInHierarchy && !PlayerHand.instance.isPlayerViewingTheirHand)
+        //hidePlayerHandButton.SetActive(false);
         if (hidePlayerHandButton.activeInHierarchy)
             hidePlayerHandButton.SetActive(false);
+        if (!showPlayerHandButton.activeInHierarchy)
+            showPlayerHandButton.SetActive(true);
+        if (!showPlayerDiscardButton.activeInHierarchy)
+            showPlayerDiscardButton.SetActive(true);
+        if (!showOpponentCardButton.activeInHierarchy)
+            showOpponentCardButton.SetActive(true);
+        if (hideOpponentCardButton.activeInHierarchy)
+            hideOpponentCardButton.SetActive(false);
+        if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+        }
         // When the movement phase begins, save the land occupied by the unit to be used in movement resets
         SaveUnitStartingLocation();
+        if (!gamePlayerHandButtonsCreated)
+            CreateGamePlayerHandButtons();
+        if (opponentHandButtons.Count > 0)
+        {
+            foreach (GameObject opponentHandButton in opponentHandButtons)
+            {
+                opponentHandButton.SetActive(false);
+            }
+        }
+        if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
+        {
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed = null;
+            isPlayerViewingOpponentHand = false;
+        }
 
     }
     public void UnitsHaveMoved()
@@ -415,6 +465,8 @@ public class GameplayManager : MonoBehaviour
             {
                 Debug.Log("Local Player is ready to go to next phase.");
                 endUnitPlacementButton.GetComponentInChildren<Text>().text = "Unready";
+                if (MouseClickManager.instance.unitsSelected.Count > 0)
+                    MouseClickManager.instance.ClearUnitSelection();
             }
             else
             {
@@ -473,5 +525,104 @@ public class GameplayManager : MonoBehaviour
             }
         }
     }
+    void CreateGamePlayerHandButtons()
+    {
+        GameObject[] allGamePlayers = GameObject.FindGameObjectsWithTag("GamePlayer");
+        Vector3 buttonPos = new Vector3(-175, -25, 0);
 
+        foreach (GameObject gamePlayer in allGamePlayers)
+        {
+            GamePlayer gamePlayerScript = gamePlayer.GetComponent<GamePlayer>();
+            GameObject gamePlayerHandButton = Instantiate(opponentHandButtonPrefab);
+            gamePlayerHandButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
+            buttonPos.y -= 50f;
+            gamePlayerHandButton.GetComponent<RectTransform>().anchoredPosition = buttonPos;
+            gamePlayerHandButton.GetComponentInChildren<Text>().text = gamePlayerScript.PlayerName + " Hand";
+            OpponentHandButtonScript gamePlayerHandButtonScript = gamePlayerHandButton.GetComponent<OpponentHandButtonScript>();
+            gamePlayerHandButtonScript.playerHandConnId = gamePlayerScript.ConnectionId;
+            gamePlayerHandButtonScript.playerHandOwnerName = gamePlayerScript.PlayerName;
+            gamePlayerHandButtonScript.FindOpponentHand();
+
+            opponentHandButtons.Add(gamePlayerHandButton);
+
+
+            GameObject gamePlayerDiscardButton = Instantiate(opponentDiscardButtonPrefab);
+            gamePlayerDiscardButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
+            buttonPos.y -= 50f;
+            gamePlayerDiscardButton.GetComponent<RectTransform>().anchoredPosition = buttonPos;
+            gamePlayerDiscardButton.GetComponentInChildren<Text>().text = gamePlayerScript.PlayerName + " Discard";
+            opponentHandButtons.Add(gamePlayerDiscardButton);
+
+            gamePlayerHandButton.SetActive(false);
+            gamePlayerDiscardButton.SetActive(false);
+        }
+
+        gamePlayerHandButtonsCreated = true;
+    }
+    public void ShowOpponentHandHideUI(GameObject buttonClicked)
+    {
+        endUnitMovementButton.SetActive(false);
+        resetAllMovementButton.SetActive(false);
+        showPlayerHandButton.SetActive(false);
+        unitMovementNoUnitsMovedText.gameObject.SetActive(false);
+        MouseClickManager.instance.ClearUnitSelection();
+        foreach (GameObject opponentHandButton in opponentHandButtons)
+        {
+            if (opponentHandButton != buttonClicked)
+                opponentHandButton.SetActive(false);
+        }
+        hideOpponentCardButton.SetActive(false);
+    }
+    public void HideOpponentHandRestoreUI()
+    {
+
+        endUnitMovementButton.SetActive(true);
+        if (!LocalGamePlayerScript.ReadyForNextPhase)
+        {
+            if (haveUnitsMoved)
+            {
+                resetAllMovementButton.SetActive(true);
+            }
+            else if (!haveUnitsMoved)
+            {
+                unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+            }
+        }
+
+        foreach (GameObject opponentHandButton in opponentHandButtons)
+        {
+            opponentHandButton.SetActive(true);
+        }
+        hideOpponentCardButton.SetActive(true);
+    }
+    public void ShowOpponentCards()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen && !LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            showPlayerHandButton.SetActive(false);
+            showPlayerDiscardButton.SetActive(false);
+            showOpponentCardButton.SetActive(false);
+            hideOpponentCardButton.SetActive(true);
+
+            foreach (GameObject opponentHandButton in opponentHandButtons)
+            {
+                opponentHandButton.SetActive(true);
+            }
+        }
+    }
+    public void HideOpponentCards()
+    {
+        if (!EscMenuManager.instance.IsMainMenuOpen && !LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            showPlayerHandButton.SetActive(true);
+            showPlayerDiscardButton.SetActive(true);
+            showOpponentCardButton.SetActive(true);
+            hideOpponentCardButton.SetActive(false);
+
+            foreach (GameObject opponentHandButton in opponentHandButtons)
+            {
+                opponentHandButton.SetActive(false);
+            }
+        }
+    }
 }

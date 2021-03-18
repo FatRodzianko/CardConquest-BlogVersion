@@ -41,16 +41,23 @@ public class EscMenuManager : MonoBehaviour
         }
         else if (GameplayManager.instance.currentGamePhase == "Unit Movement")
         {
-            if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == false)
+            if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == false && GameplayManager.instance.isPlayerViewingOpponentHand == false)
             {
                 Debug.Log("Opening the ESC menu");
 
                 IsMainMenuOpen = !IsMainMenuOpen;
                 escMenuPanel.SetActive(IsMainMenuOpen);
             }
-            else if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == true)
+            else if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == true && GameplayManager.instance.isPlayerViewingOpponentHand == false)
             {
                 GameplayManager.instance.HidePlayerHandPressed();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == false && GameplayManager.instance.isPlayerViewingOpponentHand == true)
+            {
+                GameplayManager.instance.isPlayerViewingOpponentHand = false;
+                GameplayManager.instance.playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+                GameplayManager.instance.HideOpponentHandRestoreUI();
+                GameplayManager.instance.playerHandBeingViewed = null;
             }
         }
     }
