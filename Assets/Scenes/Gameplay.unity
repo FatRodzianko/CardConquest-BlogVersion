@@ -360,7 +360,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 395506859}
-        m_MethodName: StartUnitMovementPhase
+        m_MethodName: ChangePlayerReadyStatus
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

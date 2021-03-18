@@ -230,6 +230,20 @@ public class UnitScript : NetworkBehaviour
             TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
             return;
         }
+        foreach (GameObject unit in unitsSelected)
+        {
+            uint unitNetId = unit.GetComponent<NetworkIdentity>().netId;
+            if (requestingPlayer.playerUnitNetIds.Contains(unitNetId))
+            {
+                continue;
+            }
+            else
+            {
+                Debug.Log("Player tried to move unit they do not own. Rejecting movement. Unit: " + unit + " netid: " + unitNetId);
+                TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
+                return;
+            }
+        }
         if (totalUnitsToMove > 5)
         {
             Debug.Log("CmdServerCanUnitsMove: Too many units to move: " + totalUnitsToMove);
@@ -250,6 +264,29 @@ public class UnitScript : NetworkBehaviour
                 TargetReturnCanUnitsMove(connectionToClient, true, landUserClicked, positionToMoveTo);
                 return;
             }
+        }
+        if (GameplayManager.instance.currentGamePhase == "Unit Movement")
+        {
+            bool canMove = false;
+            foreach (GameObject unit in unitsSelected)
+            {
+
+                UnitScript unitScript = unit.GetComponent<UnitScript>();
+                float disFromCurrentLocation = Vector3.Distance(positionToMoveTo, unitScript.startingPosition);
+                if (disFromCurrentLocation < 3.01f)
+                {
+                    Debug.Log("SUCCESS: Unit movement distance of: " + disFromCurrentLocation.ToString("0.00"));
+                    canMove = true;
+                }
+                else
+                {
+                    Debug.Log("FAILURE: Unit movement distance of: " + disFromCurrentLocation.ToString("0.00"));
+                    canMove = false;
+                    break;
+                }
+            }
+            TargetReturnCanUnitsMove(connectionToClient, canMove, landUserClicked, positionToMoveTo);
+            return;
         }
         TargetReturnCanUnitsMove(connectionToClient, false, landUserClicked, positionToMoveTo);
         return;
@@ -281,7 +318,7 @@ public class UnitScript : NetworkBehaviour
         }
     }
     [Command]
-    void CmdUpdateUnitNewPosition(GameObject unit, Vector3 newPosition, GameObject landClicked)
+    public void CmdUpdateUnitNewPosition(GameObject unit, Vector3 newPosition, GameObject landClicked)
     {
         UnitScript unitScript = unit.GetComponent<UnitScript>();
         unitScript.newPosition = newPosition;

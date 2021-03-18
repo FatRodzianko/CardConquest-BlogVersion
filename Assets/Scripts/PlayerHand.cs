@@ -11,6 +11,7 @@ public class PlayerHand : NetworkBehaviour
     [SyncVar] public int ownerPlayerNumber;
 
     [SyncVar] public bool isHandInitialized = false;
+    public bool localHandInitialized = false;
 
     public List<GameObject> Hand = new List<GameObject>();
     public List<GameObject> DiscardPile = new List<GameObject>();
@@ -32,7 +33,7 @@ public class PlayerHand : NetworkBehaviour
 
     public void InitializePlayerHand()
     {
-        if (!isHandInitialized)
+        if (!localHandInitialized)
         {
             GameObject[] allCards = GameObject.FindGameObjectsWithTag("Card");
             foreach (GameObject card in allCards)
@@ -44,7 +45,9 @@ public class PlayerHand : NetworkBehaviour
                 }
             }
             Hand = Hand.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
-            CmdInitializePlayerHand();
+            localHandInitialized = true;
+            if(hasAuthority)
+                CmdInitializePlayerHand();
             Debug.Log("Hand initialized for: " + ownerPlayerName);
         }
     }
@@ -75,8 +78,9 @@ public class PlayerHand : NetworkBehaviour
             if (!playerCard.activeInHierarchy)
             {
                 playerCard.SetActive(true);
-                playerCard.transform.position = cardLocation;
+                
             }
+            playerCard.transform.position = cardLocation;
             cardLocation.x += 4.5f;
         }
         // Hide land text since it displays over cards

@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Mirror;
 
 public class MouseClickManager : MonoBehaviour
 {
@@ -36,37 +37,41 @@ public class MouseClickManager : MonoBehaviour
 
             if (rayHitUnit.collider != null)
             {
-                UnitScript unitScript = rayHitUnit.collider.GetComponent<UnitScript>();
-                if (!unitScript.currentlySelected)
+                if (rayHitUnit.collider.gameObject.GetComponent<NetworkIdentity>().hasAuthority)
                 {
-                    Debug.Log("Selecting a new unit.");
-                    unitsSelected.Add(rayHitUnit.collider.gameObject);
-                    unitScript.currentlySelected = !unitScript.currentlySelected;
-                    unitScript.ClickedOn();
+                    UnitScript unitScript = rayHitUnit.collider.GetComponent<UnitScript>();
+                    if (!unitScript.currentlySelected)
+                    {
+                        Debug.Log("Selecting a new unit.");
+                        unitsSelected.Add(rayHitUnit.collider.gameObject);
+                        unitScript.currentlySelected = !unitScript.currentlySelected;
+                        unitScript.ClickedOn();
 
-                    if (unitScript.currentLandOccupied != null)
-                    {
-                        LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
-                        landScript.HighlightLandArea();
-                    }
-                }
-                else 
-                {
-                    unitsSelected.Remove(rayHitUnit.collider.gameObject);
-                    Debug.Log("Deselecting the unit unit.");
-                    unitScript.currentlySelected = !unitScript.currentlySelected;
-                    unitScript.ClickedOn();
-                    unitScript.CheckLandForRemainingSelectedUnits();
-                    if (unitScript.currentLandOccupied != null)
-                    {
-                        LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
-                        if (landScript.multipleUnitsOnLand)
+                        if (unitScript.currentLandOccupied != null)
                         {
-                            Debug.Log("UN-Selected unit on land with multiple units.");
+                            LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
+                            landScript.HighlightLandArea();
                         }
+                    }
+                    else
+                    {
+                        unitsSelected.Remove(rayHitUnit.collider.gameObject);
+                        Debug.Log("Deselecting the unit unit.");
+                        unitScript.currentlySelected = !unitScript.currentlySelected;
+                        unitScript.ClickedOn();
+                        unitScript.CheckLandForRemainingSelectedUnits();
+                        if (unitScript.currentLandOccupied != null)
+                        {
+                            LandScript landScript = unitScript.currentLandOccupied.GetComponent<LandScript>();
+                            if (landScript.multipleUnitsOnLand)
+                            {
+                                Debug.Log("UN-Selected unit on land with multiple units.");
+                            }
 
+                        }
                     }
                 }
+                
             }
             else if (rayHitLand.collider != null && unitsSelected.Count > 0 && rayHitUnit.collider == null) // if the player has selected units previously and clicks on a land, check if the units can be moved)
             {

@@ -9,6 +9,12 @@ public class EscMenuManager : MonoBehaviour
     [SerializeField]
     private GameObject escMenuPanel;
 
+    [Header("GamePlayers")]
+    [SerializeField] private GameObject LocalGamePlayer;
+    [SerializeField] private GamePlayer LocalGamePlayerScript;
+    [SerializeField] private GameObject LocalPlayerHand;
+    [SerializeField] private PlayerHand LocalPlayerHandScript;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -17,23 +23,36 @@ public class EscMenuManager : MonoBehaviour
         {
             escMenuPanel.SetActive(false);
         }
+        GetLocalGamePlayer();
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (GameplayManager.instance.currentGamePhase == "Unit Placement")
         {
-            Debug.Log("Opening the ESC menu");
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Debug.Log("Opening the ESC menu");
 
-            IsMainMenuOpen = !IsMainMenuOpen;
-            escMenuPanel.SetActive(IsMainMenuOpen);
+                IsMainMenuOpen = !IsMainMenuOpen;
+                escMenuPanel.SetActive(IsMainMenuOpen);
+            }
         }
-        /*
-        else if (Input.GetKeyDown(KeyCode.Escape) && PlayerHand.instance.isPlayerViewingTheirHand == true)
+        else if (GameplayManager.instance.currentGamePhase == "Unit Movement")
         {
-            GameplayManager.instance.HidePlayerHandPressed();
-        }*/
+            if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == false)
+            {
+                Debug.Log("Opening the ESC menu");
+
+                IsMainMenuOpen = !IsMainMenuOpen;
+                escMenuPanel.SetActive(IsMainMenuOpen);
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape) && LocalPlayerHandScript.isPlayerViewingTheirHand == true)
+            {
+                GameplayManager.instance.HidePlayerHandPressed();
+            }
+        }
     }
     void MakeInstance()
     {
@@ -53,6 +72,17 @@ public class EscMenuManager : MonoBehaviour
     public void ExitGame()
     {
         Application.Quit();
+    }
+    void GetLocalGamePlayer()
+    {
+        LocalGamePlayer = GameObject.Find("LocalGamePlayer");
+        LocalGamePlayerScript = LocalGamePlayer.GetComponent<GamePlayer>();
+
+    }
+    public void GetLocalGamePlayerHand()
+    {
+        LocalPlayerHand = LocalGamePlayerScript.myPlayerCardHand;
+        LocalPlayerHandScript = LocalPlayerHand.GetComponent<PlayerHand>();
     }
 
 }

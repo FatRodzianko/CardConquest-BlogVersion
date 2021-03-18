@@ -467,8 +467,17 @@ public class GamePlayer : NetworkBehaviour
         }
         if (allPlayersReady)
         {
+            foreach (GamePlayer gamePlayer in Game.GamePlayers)
+            {
+                gamePlayer.ReadyForNextPhase = false;
+            }
             if (Game.CurrentGamePhase == "Unit Placement")
                 Game.CurrentGamePhase = "Unit Movement";
+            if (Game.CurrentGamePhase == "Unit Movement")
+            {
+                // Placeholder code for real code which will do things like check for battles
+                Debug.Log("Current phase is Unit Movement");
+            }
             RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
         }
         else

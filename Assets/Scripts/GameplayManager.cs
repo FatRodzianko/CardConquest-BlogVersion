@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Mirror;
 
 public class GameplayManager : MonoBehaviour
 {
@@ -30,11 +31,14 @@ public class GameplayManager : MonoBehaviour
     [SerializeField] private GameObject LocalGamePlayer;
     [SerializeField] private GamePlayer LocalGamePlayerScript;
     // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
         MakeInstance();
         infToPlace = new List<GameObject>();
         tanksToPlace = new List<GameObject>();
+    }
+    void Start()
+    {      
 
         //currentGamePhase = "Unit Placement";
         //SetGamePhaseText();
@@ -166,7 +170,18 @@ public class GameplayManager : MonoBehaviour
         SetGamePhaseText();
         UnitPlacementUI.SetActive(false);
         RemoveCannotPlaceHereOutlines();
-        LocalGamePlayerScript.ChangeReadyForNextPhaseStatus();
+        EscMenuManager.instance.GetLocalGamePlayerHand();
+        GameObject[] allPlayerHands = GameObject.FindGameObjectsWithTag("PlayerHand");
+        foreach (GameObject playerHand in allPlayerHands)
+        {
+            PlayerHand playerHandScript = playerHand.GetComponent<PlayerHand>();
+            if (!playerHandScript.localHandInitialized)
+            {
+                playerHandScript.InitializePlayerHand();
+            }
+        }
+        if (MouseClickManager.instance.unitsSelected.Count > 0)
+            MouseClickManager.instance.ClearUnitSelection();
         StartUnitMovementPhase();
     }
     void LimitUserPlacementByDistanceToBase()
@@ -245,13 +260,24 @@ public class GameplayManager : MonoBehaviour
     void SaveUnitStartingLocation()
     {
         Debug.Log("Saving unit's starting land location.");
-        GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
-        foreach (Transform unitChild in unitHolder.transform)
+        GameObject[] PlayerUnitHolders = GameObject.FindGameObjectsWithTag("PlayerUnitHolder");
+        foreach (GameObject unitHolder in PlayerUnitHolders)
         {
-            UnitScript unitScript = unitChild.transform.gameObject.GetComponent<UnitScript>();
-            if (unitScript.currentLandOccupied != null)
+            PlayerUnitHolder unitHolderScript = unitHolder.GetComponent<PlayerUnitHolder>();
+            if (unitHolderScript.ownerConnectionId == LocalGamePlayerScript.ConnectionId)
             {
-                unitScript.previouslyOccupiedLand = unitScript.currentLandOccupied;
+                foreach (Transform unitChild in unitHolder.transform)
+                {
+                    if (unitChild.GetComponent<NetworkIdentity>().hasAuthority)
+                    {
+                        UnitScript unitChildScript = unitChild.GetComponent<UnitScript>();
+                        if (unitChildScript.currentLandOccupied != null)
+                        {
+                            unitChildScript.previouslyOccupiedLand = unitChildScript.currentLandOccupied;
+                        }
+                    }
+                }
+                break;
             }
         }
     }
@@ -259,27 +285,46 @@ public class GameplayManager : MonoBehaviour
     {
         if (!EscMenuManager.instance.IsMainMenuOpen)
         {
-            if (resetAllMovementButton.activeInHierarchy)
-                resetAllMovementButton.SetActive(false);
-            if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
-                unitMovementNoUnitsMovedText.gameObject.SetActive(true);
-            if (endUnitMovementButton.activeInHierarchy)
-                endUnitMovementButton.GetComponent<Image>().color = Color.white;
-
-            GameObject unitHolder = GameObject.FindGameObjectWithTag("PlayerUnitHolder");
-            foreach (Transform unitChild in unitHolder.transform)
+            GameObject unitHolder = LocalGamePlayerScript.myUnitHolder;
+            PlayerUnitHolder unitHolderScript = unitHolder.GetComponent<PlayerUnitHolder>();
+            if (unitHolderScript.ownerConnectionId == LocalGamePlayerScript.ConnectionId)
             {
-                UnitScript unitScript = unitChild.transform.gameObject.GetComponent<UnitScript>();
-                if (unitScript.previouslyOccupiedLand != null)
+                foreach (Transform unitChild in unitHolder.transform)
                 {
-                    Debug.Log("Unit was moved. Resetting unit movement.");
-                    if (MouseClickManager.instance.unitsSelected.Count > 0)
-                        MouseClickManager.instance.ClearUnitSelection();
-                       
-                    MouseClickManager.instance.unitsSelected.Add(unitChild.gameObject);
-                    MouseClickManager.instance.MoveAllUnits(unitScript.previouslyOccupiedLand);
-                    MouseClickManager.instance.unitsSelected.Clear();
+                    if (unitChild.GetComponent<NetworkIdentity>().hasAuthority)
+                    {
+                        UnitScript unitChildScript = unitChild.GetComponent<UnitScript>();
+                        if (unitChildScript.newPosition != unitChildScript.startingPosition && unitChildScript.previouslyOccupiedLand != null)
+                        {
+                            if (MouseClickManager.instance.unitsSelected.Count > 0)
+                                MouseClickManager.instance.ClearUnitSelection();
+                            MouseClickManager.instance.unitsSelected.Add(unitChild.gameObject);
+
+                            unitChildScript.CmdUpdateUnitNewPosition(unitChild.gameObject, unitChildScript.startingPosition, unitChildScript.previouslyOccupiedLand);
+                            Debug.Log("Calling MoveAllUnits from GameplayManager for land  on: " + unitChildScript.previouslyOccupiedLand.transform.position);
+                            MouseClickManager.instance.MoveAllUnits(unitChildScript.previouslyOccupiedLand);
+                            //MouseClickManager.instance.unitsSelected.Clear();
+                            unitChildScript.currentlySelected = true;
+                            MouseClickManager.instance.ClearUnitSelection();
+                        }
+                    }
                 }
+            }
+
+            if (resetAllMovementButton.activeInHierarchy)
+            {
+                Debug.Log("Deactivating the resetAllMovementButton");
+                resetAllMovementButton.SetActive(false);
+            }
+            if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
+            {
+                Debug.Log("Activating the unitMovementNoUnitsMovedText");
+                unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+            }
+            if (endUnitMovementButton.activeInHierarchy)
+            {
+                Debug.Log("Changing the endUnitMovementButton color to white");
+                endUnitMovementButton.GetComponent<Image>().color = Color.white;
             }
             haveUnitsMoved = false;
         }
@@ -294,6 +339,8 @@ public class GameplayManager : MonoBehaviour
             unitMovementNoUnitsMovedText.gameObject.SetActive(false);
             hidePlayerHandButton.SetActive(true);
             //PlayerHand.instance.ShowPlayerHandOnScreen();
+            MouseClickManager.instance.ClearUnitSelection();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().ShowPlayerHandOnScreen();
         }
 
     }
@@ -314,6 +361,7 @@ public class GameplayManager : MonoBehaviour
 
             hidePlayerHandButton.SetActive(false);
             //PlayerHand.instance.HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
         }
 
     }
@@ -348,9 +396,16 @@ public class GameplayManager : MonoBehaviour
     }
     public void ChangeGamePhase(string newGamePhase)
     {
-        currentGamePhase = newGamePhase;
-        if (newGamePhase == "Unit Movement")
+        if (currentGamePhase == "Unit Placement" && newGamePhase == "Unit Movement")
+        {
+            currentGamePhase = newGamePhase;
             EndUnitPlacementPhase();
+        }
+        if (currentGamePhase == "Unit Movement" && newGamePhase == "Unit Movement")
+        {
+            currentGamePhase = newGamePhase;
+            StartUnitMovementPhase();
+        }
     }
     public void UpdateReadyButton()
     {
@@ -365,6 +420,27 @@ public class GameplayManager : MonoBehaviour
             {
                 Debug.Log("Local Player IS NOT ready to go to next phase.");
                 endUnitPlacementButton.GetComponentInChildren<Text>().text = "Done Placing Units";
+            }
+        }
+        if (currentGamePhase == "Unit Movement")
+        {
+            if (LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                endUnitMovementButton.GetComponentInChildren<Text>().text = "Unready";
+                endUnitMovementButton.GetComponent<Image>().color = Color.white;
+                if (resetAllMovementButton.activeInHierarchy)
+                    resetAllMovementButton.SetActive(false);
+                if (MouseClickManager.instance.unitsSelected.Count > 0)
+                    MouseClickManager.instance.ClearUnitSelection();
+            }
+            else
+            {
+                endUnitMovementButton.GetComponentInChildren<Text>().text = "End Unit Movement";
+                if (haveUnitsMoved)
+                {
+                    endUnitMovementButton.GetComponent<Image>().color = Color.yellow;
+                    resetAllMovementButton.SetActive(true);
+                }
             }
         }
     }

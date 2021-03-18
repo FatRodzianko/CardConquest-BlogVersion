@@ -90,7 +90,7 @@ public class LandScript : NetworkBehaviour
     }
     public void UpdateUnitText()
     {
-        if (infText != null)
+        if (infText)
         {
             Debug.Log("Updating inf text. Current number of infantry " + infantryOnLand.Count.ToString());
             if (infantryOnLand.Count > 1)
@@ -98,11 +98,12 @@ public class LandScript : NetworkBehaviour
             else
             {
                 Destroy(infText);
+                infText = null;
                 CollapseUnits();
             }
 
         }
-        if (tankText != null)
+        if (tankText)
         {
             Debug.Log("Updating tank text. Current number of tanks: " + tanksOnLand.Count.ToString());
             if (tanksOnLand.Count > 1)
@@ -110,6 +111,7 @@ public class LandScript : NetworkBehaviour
             else
             {
                 Destroy(tankText);
+                tankText = null;
                 CollapseUnits();
             }
         }
