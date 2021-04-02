@@ -335,6 +335,8 @@ public class UnitScript : NetworkBehaviour
                 {
                     Debug.Log("Unit network id: " + unitNetId + " found on land object: " + landObject);
                     landChildScript.UnitNetIdsOnLand.RemoveAll(x => x.Equals(unitNetId));
+                    if (landChildScript.UnitNetIdsAndPlayerNumber.ContainsKey(unitNetId))
+                        landChildScript.UnitNetIdsAndPlayerNumber.Remove(unitNetId);
                     break;
                 }
             }
@@ -342,6 +344,10 @@ public class UnitScript : NetworkBehaviour
 
         LandScript landScript = landClicked.GetComponent<LandScript>();
         landScript.UnitNetIdsOnLand.Add(unitNetId);
+
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+        landScript.UnitNetIdsAndPlayerNumber.Add(unitNetId, requestingPlayer.playerNumber);
     }
     public void HandleMoveUnitToStartingPosition(Vector3 oldValue, Vector3 newValue)
     {

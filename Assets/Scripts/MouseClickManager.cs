@@ -17,6 +17,8 @@ public class MouseClickManager : MonoBehaviour
     [Header("GamePlayers")]
     [SerializeField] private GameObject LocalGamePlayer;
     [SerializeField] private GamePlayer LocalGamePlayerScript;
+
+    public bool canSelectUnitsInThisPhase = false;
     // Start is called before the first frame update
     void Start()
     {
@@ -70,7 +72,7 @@ public class MouseClickManager : MonoBehaviour
 
             if (rayHitUnit.collider != null)
             {
-                if (rayHitUnit.collider.gameObject.GetComponent<NetworkIdentity>().hasAuthority && !playerViewingHand && !playerViewingOpponentHand && !playerReadyForNextPhase)
+                if (rayHitUnit.collider.gameObject.GetComponent<NetworkIdentity>().hasAuthority && !playerViewingHand && !playerViewingOpponentHand && !playerReadyForNextPhase && canSelectUnitsInThisPhase)
                 {
                     UnitScript unitScript = rayHitUnit.collider.GetComponent<UnitScript>();
                     if (!unitScript.currentlySelected)

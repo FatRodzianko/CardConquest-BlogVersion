@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
 
-public class GameplayManager : MonoBehaviour
+public class GameplayManager : NetworkBehaviour
 {
     public static GameplayManager instance;
     public string currentGamePhase;
@@ -23,6 +23,7 @@ public class GameplayManager : MonoBehaviour
     private Text unitMovementNoUnitsMovedText;
     [SerializeField]
     private GameObject UnitMovementUI, endUnitMovementButton, resetAllMovementButton;
+    [SerializeField] GameObject BattlesDetectedPanel;
     public bool haveUnitsMoved = false;
 
     [Header("Your Hand Buttons")]
@@ -46,6 +47,19 @@ public class GameplayManager : MonoBehaviour
     [Header("Player Statuses")]
     public bool isPlayerViewingOpponentHand = false;
     public GameObject playerHandBeingViewed = null;
+
+    [Header("Player Battle Info")]
+    public SyncDictionary<int, uint> battleSiteNetIds = new SyncDictionary<int, uint>();
+    public bool haveBattleSitesBeenDone = false;
+    [SyncVar] public int battleNumber;
+    [SyncVar] public uint currentBattleSite;
+
+    [Header("Ready Buttons")]
+    [SerializeField] private GameObject startBattlesButton;
+
+    [Header("Choose Cards Section")]
+    [SerializeField] private GameObject ChooseCardsPanel;
+    [SerializeField] private GameObject confirmCardButton;
 
     // Start is called before the first frame update
     private void Awake()
@@ -84,9 +98,14 @@ public class GameplayManager : MonoBehaviour
         GamePhaseText.text = currentGamePhase;
         if (currentGamePhase == "Unit Placement")
             ActivateUnitPlacementUI();
+        if (currentGamePhase == "Battle(s) Detected")
+            GamePhaseText.fontSize = 40;
+        else
+            GamePhaseText.fontSize = 50;
     }
     void ActivateUnitPlacementUI()
     {
+        MouseClickManager.instance.canSelectUnitsInThisPhase = true;
         Camera.main.orthographicSize = 8f;
         Camera.main.backgroundColor = Color.gray;
         if (!UnitPlacementUI.activeInHierarchy && currentGamePhase == "Unit Placement")
@@ -448,13 +467,27 @@ public class GameplayManager : MonoBehaviour
     {
         if (currentGamePhase == "Unit Placement" && newGamePhase == "Unit Movement")
         {
+            MouseClickManager.instance.canSelectUnitsInThisPhase = true;
             currentGamePhase = newGamePhase;
             EndUnitPlacementPhase();
         }
         if (currentGamePhase == "Unit Movement" && newGamePhase == "Unit Movement")
         {
+            MouseClickManager.instance.canSelectUnitsInThisPhase = true;
             currentGamePhase = newGamePhase;
             StartUnitMovementPhase();
+        }
+        if (currentGamePhase == "Unit Movement" && newGamePhase == "Battle(s) Detected")
+        {
+            MouseClickManager.instance.canSelectUnitsInThisPhase = false;
+            currentGamePhase = newGamePhase;
+            StartBattlesDetected();
+        }
+        if (currentGamePhase == "Battle(s) Detected" && newGamePhase.StartsWith("Choose Cards"))
+        {
+            MouseClickManager.instance.canSelectUnitsInThisPhase = false;
+            currentGamePhase = newGamePhase;
+            StartChooseCards();
         }
     }
     public void UpdateReadyButton()
@@ -493,6 +526,21 @@ public class GameplayManager : MonoBehaviour
                     endUnitMovementButton.GetComponent<Image>().color = Color.yellow;
                     resetAllMovementButton.SetActive(true);
                 }
+            }
+        }
+        if (currentGamePhase == "Battle(s) Detected")
+        {
+            if (LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                Debug.Log("Local Player is ready to go to next phase.");
+                startBattlesButton.GetComponentInChildren<Text>().text = "Unready";
+                if (MouseClickManager.instance.unitsSelected.Count > 0)
+                    MouseClickManager.instance.ClearUnitSelection();
+            }
+            else
+            {
+                Debug.Log("Local Player IS NOT ready to go to next phase.");
+                startBattlesButton.GetComponentInChildren<Text>().text = "Start Battles";
             }
         }
     }
@@ -623,6 +671,170 @@ public class GameplayManager : MonoBehaviour
             {
                 opponentHandButton.SetActive(false);
             }
+        }
+    }
+    void StartBattlesDetected()
+    {
+        Debug.Log("Starting StartBattlesDetected");
+        SetGamePhaseText();
+        haveUnitsMoved = false;
+        if (MouseClickManager.instance.unitsSelected.Count > 0)
+            MouseClickManager.instance.ClearUnitSelection();
+        ActivateBattlesDetectedUI();
+        SaveUnitStartingLocation();
+        LocalGamePlayerScript.UpdateUnitPositions();
+    }
+    void ActivateBattlesDetectedUI()
+    {
+        if (UnitPlacementUI.activeInHierarchy)
+            UnitPlacementUI.SetActive(false);
+        if (UnitMovementUI.activeInHierarchy)
+            UnitMovementUI.SetActive(false);
+        if (!BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(true);
+
+        // Move buttons to the BattlesDetectedPanel
+
+        hidePlayerHandButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+        showPlayerHandButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+        showPlayerDiscardButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+        showOpponentCardButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+        hideOpponentCardButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+
+        if (hidePlayerHandButton.activeInHierarchy)
+            hidePlayerHandButton.SetActive(false);
+        if (!showPlayerHandButton.activeInHierarchy)
+            showPlayerHandButton.SetActive(true);
+        if (!showPlayerDiscardButton.activeInHierarchy)
+            showPlayerDiscardButton.SetActive(true);
+        if (!showOpponentCardButton.activeInHierarchy)
+            showOpponentCardButton.SetActive(true);
+        if (hideOpponentCardButton.activeInHierarchy)
+            hideOpponentCardButton.SetActive(false);
+        if (!startBattlesButton.activeInHierarchy)
+            startBattlesButton.SetActive(true);
+
+        if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+        }
+
+        if (opponentHandButtons.Count > 0)
+        {
+            foreach (GameObject opponentHandButton in opponentHandButtons)
+            {
+                opponentHandButton.transform.SetParent(BattlesDetectedPanel.GetComponent<RectTransform>(), false);
+                opponentHandButton.SetActive(false);
+            }
+        }
+        if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
+        {
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed = null;
+            isPlayerViewingOpponentHand = false;
+        }
+    }
+    public void HighlightBattleSites()
+    {
+        Debug.Log("HighlightBattleSites starting. Total battle sites: " + battleSiteNetIds.Count);
+        if (battleSiteNetIds.Count > 0 && !haveBattleSitesBeenDone)
+        {
+            foreach (KeyValuePair<int, uint> battleSiteId in battleSiteNetIds)
+            {
+                LandScript battleSiteIdScript = NetworkIdentity.spawned[battleSiteId.Value].gameObject.GetComponent<LandScript>();
+                battleSiteIdScript.HighlightBattleSite();
+                battleSiteIdScript.MoveUnitsForBattleSite();
+                battleSiteIdScript.SpawnBattleNumberText(battleSiteId.Key);
+            }
+            haveBattleSitesBeenDone = true;
+        }
+    }
+    public void CheckIfAllUpdatedUnitPositionsForBattleSites()
+    {
+        Debug.Log("Executing CheckIfAllUpdatedUnitPositionsForBattleSites");
+        bool haveAllUnitsUpdated = false;
+        if (!LocalGamePlayerScript.updatedUnitPositionsForBattleSites)
+        {
+            Debug.Log("CheckIfAllUpdatedUnitPositionsForBattleSites: LocalGamePlayer not ready");
+            return;
+        }
+        else
+            haveAllUnitsUpdated = LocalGamePlayerScript.updatedUnitPositionsForBattleSites;
+
+        GameObject[] allGamePlayers = GameObject.FindGameObjectsWithTag("GamePlayer");
+        foreach (GameObject gamePlayer in allGamePlayers)
+        {
+            GamePlayer gamePlayerScript = gamePlayer.GetComponent<GamePlayer>();
+            if (!gamePlayerScript.updatedUnitPositionsForBattleSites)
+            {
+                haveAllUnitsUpdated = false;
+                Debug.Log("CheckIfAllUpdatedUnitPositionsForBattleSites: " + gamePlayerScript.PlayerName + " not ready");
+                break;
+            }
+            else
+            {
+                haveAllUnitsUpdated = gamePlayerScript.updatedUnitPositionsForBattleSites;
+            }
+        }
+        if (haveAllUnitsUpdated)
+        {
+            Debug.Log("CheckIfAllUpdatedUnitPositionsForBattleSites: all gameplayers are ready!");
+            HighlightBattleSites();
+        }
+    }
+    public void StartChooseCards()
+    {
+        Debug.Log("Starting StartBattles");
+        SetGamePhaseText();
+        ActivateChooseCards();
+    }
+    void ActivateChooseCards()
+    {
+        if (UnitMovementUI.activeInHierarchy)
+            UnitMovementUI.SetActive(false);
+        if (BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(false);
+        if (!ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(true);
+
+        // Move buttons to the UnitMovementUI
+        hidePlayerHandButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+        showPlayerHandButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+        showPlayerDiscardButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+        showOpponentCardButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+        hideOpponentCardButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+
+        if (hidePlayerHandButton.activeInHierarchy)
+            hidePlayerHandButton.SetActive(false);
+        if (!showPlayerHandButton.activeInHierarchy)
+            showPlayerHandButton.SetActive(true);
+        if (!showPlayerDiscardButton.activeInHierarchy)
+            showPlayerDiscardButton.SetActive(true);
+        if (!showOpponentCardButton.activeInHierarchy)
+            showOpponentCardButton.SetActive(true);
+        if (hideOpponentCardButton.activeInHierarchy)
+            hideOpponentCardButton.SetActive(false);
+        if (!startBattlesButton.activeInHierarchy)
+            startBattlesButton.SetActive(true);
+
+        if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+        }
+
+        if (opponentHandButtons.Count > 0)
+        {
+            foreach (GameObject opponentHandButton in opponentHandButtons)
+            {
+                opponentHandButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+                opponentHandButton.SetActive(false);
+            }
+        }
+        if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
+        {
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed = null;
+            isPlayerViewingOpponentHand = false;
         }
     }
 }

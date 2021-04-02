@@ -151,6 +151,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e76e0bc8fec2654387129aaa8e4b8d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
   infantryOnLand: []
   tanksOnLand: []
   multipleUnitsOnLand: 0
@@ -163,6 +165,15 @@ MonoBehaviour:
   cannotPlaceHereOutline: {fileID: 386276465766955766, guid: f21fce04a4eb97e4ba3d1ff7a00d3c8b,
     type: 3}
   cannotPlaceHere: 0
+  PlayerCanPlaceHere: 0
+  Player1Inf: []
+  Player1Tank: []
+  Player2Inf: []
+  Player2Tank: []
+  BattleUnitTexts: []
+  battleNumberTextPrefab: {fileID: 6770793700097966408, guid: 658867a153c51d1438c7f61e7592174a,
+    type: 3}
+  battleNumberTextObject: {fileID: 0}
 --- !u!114 &-4503443628291554703
 MonoBehaviour:
   m_ObjectHideFlags: 0

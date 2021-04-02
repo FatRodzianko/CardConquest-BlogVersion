@@ -9,6 +9,7 @@ public class LandScript : NetworkBehaviour
     public List<GameObject> infantryOnLand;
     public List<GameObject> tanksOnLand;
     public SyncList<uint> UnitNetIdsOnLand = new SyncList<uint>();
+    public SyncDictionary<uint, int> UnitNetIdsAndPlayerNumber = new SyncDictionary<uint, int>();
 
     public bool multipleUnitsOnLand = false;
 
@@ -20,12 +21,24 @@ public class LandScript : NetworkBehaviour
 
     public GameObject landOutline;
     private GameObject landOutlineObject;
+    private GameObject battleOutlineObject;
 
     public GameObject cannotPlaceHereOutline;
     private GameObject cannotPlaceHereOutlineObject;
     public bool cannotPlaceHere = false;
 
     [SyncVar(hook = nameof(HandlePlayerCanPlaceHereUpdate))] public int PlayerCanPlaceHere;
+
+    [Header("Battle Unit Lists")]
+    public List<GameObject> Player1Inf = new List<GameObject>();
+    public List<GameObject> Player1Tank = new List<GameObject>();
+    public List<GameObject> Player2Inf = new List<GameObject>();
+    public List<GameObject> Player2Tank = new List<GameObject>();
+    public List<GameObject> BattleUnitTexts = new List<GameObject>();
+
+    [Header("Text Objects")]
+    [SerializeField] private GameObject battleNumberTextPrefab;
+    public GameObject battleNumberTextObject;
 
     // Start is called before the first frame update
     void Start()
@@ -267,6 +280,16 @@ public class LandScript : NetworkBehaviour
         {
             tankText.SetActive(false);
         }
+        if (BattleUnitTexts.Count > 0)
+        {
+            foreach (GameObject battleText in BattleUnitTexts)
+            {
+                if (battleText)
+                    battleText.SetActive(false);
+            }
+        }
+        if (battleNumberTextObject)
+            battleNumberTextObject.SetActive(false);
     }
     public void UnHideUnitText()
     {
@@ -278,6 +301,16 @@ public class LandScript : NetworkBehaviour
         {
             tankText.SetActive(true);
         }
+        if (BattleUnitTexts.Count > 0)
+        {
+            foreach (GameObject battleText in BattleUnitTexts)
+            {
+                if (battleText)
+                    battleText.SetActive(true);
+            }
+        }
+        if (battleNumberTextObject)
+            battleNumberTextObject.SetActive(true);
     }
     public void CreateCannotPlaceHereOutline()
     {
@@ -309,6 +342,133 @@ public class LandScript : NetworkBehaviour
         {
             cannotPlaceHere = true;
             CreateCannotPlaceHereOutline();
+        }
+    }
+    public void HighlightBattleSite()
+    {
+        if (!battleOutlineObject)
+        {
+            Debug.Log("Creating the highlight for the battle site");
+            battleOutlineObject = Instantiate(landOutline, transform.position, Quaternion.identity);
+            battleOutlineObject.transform.SetParent(gameObject.transform);
+        }
+    }
+    public void MoveUnitsForBattleSite()
+    {
+        Debug.Log("Executing MoveUnitsForBattleSite");
+        //For now this will be "hard coded" for a 2 player game where the playernumbers are either 1 or 2
+        foreach (KeyValuePair<uint, int> units in UnitNetIdsAndPlayerNumber)
+        {
+            GameObject unitObject = NetworkIdentity.spawned[units.Key].gameObject;
+            Vector3 newPosition = unitObject.transform.position;
+            // Adjust units for player 1
+            if (units.Value == 1)
+            {
+
+                if (unitObject.tag == "infantry")
+                {
+                    newPosition.x -= 0.5f;
+                    unitObject.transform.position = newPosition;
+                    Player1Inf.Add(unitObject);
+                }
+                else if (unitObject.tag == "tank")
+                {
+                    newPosition.x -= 0.7f;
+                    unitObject.transform.position = newPosition;
+                    Player1Tank.Add(unitObject);
+                }
+            }
+            //Adjust units for Player 2
+            else if (units.Value == 2)
+            {
+                if (unitObject.tag == "infantry")
+                {
+                    newPosition.x += 0.5f;
+                    unitObject.transform.position = newPosition;
+                    Player2Inf.Add(unitObject);
+                }
+                else if (unitObject.tag == "tank")
+                {
+                    newPosition.x += 0.7f;
+                    unitObject.transform.position = newPosition;
+                    Player2Tank.Add(unitObject);
+                }
+            }
+        }
+        UnitTextForBattles();
+    }
+    public void UnitTextForBattles()
+    {
+        if (infText)
+        {
+            Destroy(infText);
+            infText = null;
+        }
+        if (tankText)
+        {
+            Destroy(tankText);
+            tankText = null;
+        }
+
+        //Spawn unit text for player 1
+        if (Player1Inf.Count > 1)
+        {
+            Debug.Log("Creating text box for multiple infantry for player 1");
+            GameObject player1InfText = Instantiate(infTextHolder, gameObject.transform);
+
+            player1InfText.transform.position = transform.position;
+            Vector3 player1InfTextPosition = new Vector3(-1.75f, -0.75f, 0.0f);
+            player1InfText.transform.localPosition = player1InfTextPosition;
+
+            player1InfText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player1Inf.Count.ToString());
+            BattleUnitTexts.Add(player1InfText);
+        }
+        if (Player1Tank.Count > 1)
+        {
+            Debug.Log("Creating text box for multiple tanks for player 1");
+            GameObject player1TankText = Instantiate(tankTextHolder, gameObject.transform);
+
+            player1TankText.transform.position = transform.position;
+            Vector3 player1TankTextPosition = new Vector3(-3.0f, -0.75f, 0.0f);
+            player1TankText.transform.localPosition = player1TankTextPosition;
+
+            player1TankText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player1Tank.Count.ToString());
+            BattleUnitTexts.Add(player1TankText);
+        }
+
+        //Spawn unit text for player2
+        if (Player2Inf.Count > 1)
+        {
+            Debug.Log("Creating text box for multiple infantry for player 2");
+            GameObject player2InfText = Instantiate(infTextHolder, gameObject.transform);
+
+            player2InfText.transform.position = transform.position;
+            Vector3 player2InfTextPosition = new Vector3(0.3f, -0.75f, 0.0f);
+            player2InfText.transform.localPosition = player2InfTextPosition;
+
+            player2InfText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player2Inf.Count.ToString());
+            BattleUnitTexts.Add(player2InfText);
+        }
+        if (Player2Tank.Count > 1)
+        {
+            Debug.Log("Creating text box for multiple tanks for player 2");
+            GameObject player2TankText = Instantiate(tankTextHolder, gameObject.transform);
+
+            player2TankText.transform.position = transform.position;
+            Vector3 player2TankTextPosition = new Vector3(0.0f, -0.75f, 0.0f);
+            player2TankText.transform.localPosition = player2TankTextPosition;
+
+            player2TankText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player2Tank.Count.ToString());
+            BattleUnitTexts.Add(player2TankText);
+        }
+    }
+    public void SpawnBattleNumberText(int battleSiteNumber)
+    {
+        if (!battleNumberTextObject)
+        {
+            battleNumberTextObject = Instantiate(battleNumberTextPrefab, this.transform);
+            battleNumberTextObject.transform.position = transform.position;
+            battleNumberTextObject.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("#" + battleSiteNumber);
         }
     }
 }

@@ -35,6 +35,9 @@ public class GamePlayer : NetworkBehaviour
     [SyncVar] public bool GotPlayerBase = false;
     [SyncVar(hook = nameof(HandlePlayerReadyStatusUpdate))] public bool ReadyForNextPhase = false;
 
+    [Header("Player Battle Info")]
+    [SyncVar(hook = nameof(HandleUpdatedUnitPositionsForBattleSites))] public bool updatedUnitPositionsForBattleSites = false;
+
     private NetworkManagerCC game;
     private NetworkManagerCC Game
     {
@@ -472,11 +475,47 @@ public class GamePlayer : NetworkBehaviour
                 gamePlayer.ReadyForNextPhase = false;
             }
             if (Game.CurrentGamePhase == "Unit Placement")
+            {
                 Game.CurrentGamePhase = "Unit Movement";
+                Debug.Log("Changing phase to Unit Movement");
+                RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+                return;
+            }
             if (Game.CurrentGamePhase == "Unit Movement")
             {
                 // Placeholder code for real code which will do things like check for battles
+                bool areThereAnyBattles = CheckForPossibleBattles();
                 Debug.Log("Current phase is Unit Movement");
+                if (areThereAnyBattles)
+                {
+                    Debug.Log("Battle detected. Changing Game phase to 'Battle(s) Detected'");
+                    Game.CurrentGamePhase = "Battle(s) Detected";
+                    RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+                    return;
+                }
+                else
+                {
+                    Debug.Log("No battles detected");
+                    Debug.Log("Game phase remains on Unit Movement");
+                    RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+                    return;
+                }
+            }
+            if (Game.CurrentGamePhase == "Battle(s) Detected")
+            {
+                GameplayManager.instance.battleNumber = 1;
+                foreach (KeyValuePair<int, uint> battles in GameplayManager.instance.battleSiteNetIds)
+                {
+                    if (battles.Key == GameplayManager.instance.battleNumber)
+                    {
+                        GameplayManager.instance.currentBattleSite = battles.Value;
+                        break;
+                    }
+                }
+                Game.CurrentGamePhase = "Choose Cards:\nBattle #1";
+                Debug.Log("Game phase changed to Choose Cards");
+                RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+                return;
             }
             RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
         }
@@ -531,5 +570,43 @@ public class GamePlayer : NetworkBehaviour
                 break;
             }
         }
+        if (Game.CurrentGamePhase == "Battle(s) Detected")
+            requestingPlayer.GetComponent<GamePlayer>().updatedUnitPositionsForBattleSites = true;
+        else
+            requestingPlayer.GetComponent<GamePlayer>().updatedUnitPositionsForBattleSites = false;
+    }
+    [Server]
+    public bool CheckForPossibleBattles()
+    {
+        Debug.Log("Ran CheckForPossibleBattles");
+        GameObject landTileHolder = GameObject.FindGameObjectWithTag("LandHolder");
+        bool wasBattleDetected = false;
+        GameplayManager.instance.battleSiteNetIds.Clear();
+        foreach (Transform landObject in landTileHolder.transform)
+        {
+            LandScript landScript = landObject.gameObject.GetComponent<LandScript>();
+            if (landScript.UnitNetIdsAndPlayerNumber.Count > 1)
+            {
+                int playerNumber = -1;
+                foreach (KeyValuePair<uint, int> units in landScript.UnitNetIdsAndPlayerNumber)
+                {
+                    if (playerNumber != units.Value && playerNumber != -1)
+                    {
+                        Debug.Log("Two different player values discovered. Value 1: " + playerNumber + " Value 2: " + units.Value);
+                        wasBattleDetected = true;
+                        int battleNumber = GameplayManager.instance.battleSiteNetIds.Count + 1;
+                        GameplayManager.instance.battleSiteNetIds.Add(battleNumber, landObject.GetComponent<NetworkIdentity>().netId);
+                        break;
+                    }
+                    playerNumber = units.Value;
+                }
+            }
+        }
+        return wasBattleDetected;
+    }
+    void HandleUpdatedUnitPositionsForBattleSites(bool oldValue, bool newValue)
+    {
+        if (newValue)
+            GameplayManager.instance.CheckIfAllUpdatedUnitPositionsForBattleSites();
     }
 }
