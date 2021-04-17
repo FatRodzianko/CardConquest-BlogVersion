@@ -28,6 +28,7 @@ public class GamePlayer : NetworkBehaviour
     public GameObject myPlayerCardHand;
     [SyncVar] public GameObject myPlayerBase;
     public SyncList<uint> playerUnitNetIds = new SyncList<uint>();
+    public SyncList<uint> playerCardHandNetIds = new SyncList<uint>();
 
     [Header("Player Statuses")]
     [SyncVar] public bool HaveSpawnedUnits = false;
@@ -37,6 +38,15 @@ public class GamePlayer : NetworkBehaviour
 
     [Header("Player Battle Info")]
     [SyncVar(hook = nameof(HandleUpdatedUnitPositionsForBattleSites))] public bool updatedUnitPositionsForBattleSites = false;
+    public SyncList<uint> playerArmyNetIds = new SyncList<uint>();
+    [SyncVar] public int playerArmyNumberOfInf;
+    [SyncVar] public int playerArmyNumberOfTanks;
+    [SyncVar] public int playerBattleScore;
+    [SyncVar(hook = nameof(HandleBattleScoreSet))] public bool isPlayerBattleScoreSet = false;
+
+    [Header("Battle Card Info")]
+    [SyncVar(hook = nameof(HandleUpdatedPlayerBattleCard))] public uint playerBattleCardNetId;
+    public GameObject selectedCard;
 
     private NetworkManagerCC game;
     private NetworkManagerCC Game
@@ -292,6 +302,7 @@ public class GamePlayer : NetworkBehaviour
                 playerCardScript.ownerPlayerNumber = requestingPlayer.playerNumber;
                 playerCard.transform.position = new Vector3(-1000, -1000, 0);
                 NetworkServer.Spawn(playerCard, connectionToClient);
+                requestingPlayer.playerCardHandNetIds.Add(playerCard.GetComponent<NetworkIdentity>().netId);
             }
             requestingPlayer.HaveSpawnedCards = true;
             //Tell all clients to "show" the PlayerUnitHolder - set the correct parent to all the unity holders and run GameplayManager's PutUnitsInUnitBox
@@ -508,12 +519,20 @@ public class GamePlayer : NetworkBehaviour
                 {
                     if (battles.Key == GameplayManager.instance.battleNumber)
                     {
-                        GameplayManager.instance.currentBattleSite = battles.Value;
+                        GameplayManager.instance.HandleCurrentBattleSiteUpdate(GameplayManager.instance.currentBattleSite, battles.Value);
                         break;
                     }
                 }
                 Game.CurrentGamePhase = "Choose Cards:\nBattle #1";
                 Debug.Log("Game phase changed to Choose Cards");
+                RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
+                return;
+            }
+            if (Game.CurrentGamePhase.StartsWith("Choose Card"))
+            {
+                DetermineWhoWonBattle();
+                Game.CurrentGamePhase = "Battle Results";
+                Debug.Log("Game phase changed to Battle Results");
                 RpcAdvanceToNextPhase(allPlayersReady, Game.CurrentGamePhase);
                 return;
             }
@@ -608,5 +627,212 @@ public class GamePlayer : NetworkBehaviour
     {
         if (newValue)
             GameplayManager.instance.CheckIfAllUpdatedUnitPositionsForBattleSites();
+    }
+    public void SetGamePlayerArmy()
+    {
+        if (hasAuthority)
+            CmdSetGamePlayerArmy();
+    }
+    [Command]
+    void CmdSetGamePlayerArmy()
+    {
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+        Debug.Log("Executing CmdSetGamePlayerArmy for: " + requestingPlayer.PlayerName + ":" + requestingPlayer.ConnectionId);
+        //Clear out any previous army data
+        requestingPlayer.playerArmyNetIds.Clear();
+        requestingPlayer.playerArmyNumberOfInf = 0;
+        requestingPlayer.playerArmyNumberOfTanks = 0;
+        requestingPlayer.playerBattleScore = 0;
+
+        GameObject battleSite = NetworkIdentity.spawned[GameplayManager.instance.currentBattleSite].gameObject;
+        LandScript battleSiteScript = battleSite.GetComponent<LandScript>();
+
+        foreach (KeyValuePair<uint, int> battleUnits in battleSiteScript.UnitNetIdsAndPlayerNumber)
+        {
+            if (battleUnits.Value == requestingPlayer.playerNumber)
+            {
+                requestingPlayer.playerArmyNetIds.Add(battleUnits.Key);
+                if (NetworkIdentity.spawned[battleUnits.Key].gameObject.tag == "infantry")
+                    requestingPlayer.playerArmyNumberOfInf++;
+                else if (NetworkIdentity.spawned[battleUnits.Key].gameObject.tag == "tank")
+                    requestingPlayer.playerArmyNumberOfTanks++;
+            }
+        }
+        requestingPlayer.playerBattleScore = requestingPlayer.playerArmyNumberOfInf;
+        requestingPlayer.playerBattleScore += (requestingPlayer.playerArmyNumberOfTanks * 2);
+        HandleBattleScoreSet(requestingPlayer.isPlayerBattleScoreSet, true);
+    }
+    void HandleBattleScoreSet(bool oldValue, bool newValue)
+    {
+        if (isServer)
+        {
+            this.isPlayerBattleScoreSet = newValue;
+        }
+        if (isClient && newValue)
+        {
+            Debug.Log("Running HandleBattleScoreSet as a client.");
+            GameplayManager.instance.CheckIfAllPlayerBattleScoresSet();
+        }
+
+    }
+    public void SelectThisCard(GameObject playerCard)
+    {
+        if (hasAuthority)
+        {
+            CmdPlayerSelectCardForBattle(playerCard.GetComponent<NetworkIdentity>().netId);
+        }
+    }
+    [Command]
+    void CmdPlayerSelectCardForBattle(uint playerCardNetworkId)
+    {
+        NetworkIdentity networkIdentity = connectionToClient.identity;
+        GamePlayer requestingPlayer = networkIdentity.GetComponent<GamePlayer>();
+        Debug.Log("Executing CmdPlayerSelectCardForBattle for: " + requestingPlayer.PlayerName + ":" + requestingPlayer.ConnectionId);
+        if (requestingPlayer.playerCardHandNetIds.Contains(playerCardNetworkId))
+        {
+            Debug.Log("Player card: " + playerCardNetworkId + " is in " + requestingPlayer.PlayerName + "'s hand.");
+            //requestingPlayer.playerBattleCardNetId = playerCardNetworkId;
+            HandleUpdatedPlayerBattleCard(requestingPlayer.playerBattleCardNetId, playerCardNetworkId);
+        }
+        else
+        {
+            Debug.Log("Player card: " + playerCardNetworkId + " IS NOT in " + requestingPlayer.PlayerName + "'s hand.");
+        }
+    }
+    void HandleUpdatedPlayerBattleCard(uint oldValue, uint newValue)
+    {
+        if (isServer)
+        {
+            playerBattleCardNetId = newValue;
+        }
+        if (isClient)
+        {
+            Debug.Log("Running HandleUpdatedPlayerBattleCard as a client");
+            if (hasAuthority)
+            {
+                GameplayManager.instance.HidePlayerHandPressed();
+                RemoveSelectedCardFromHandAndReposition(newValue);
+            }
+        }
+    }
+    void RemoveSelectedCardFromHandAndReposition(uint SelectedCardNetId)
+    {
+        Debug.Log("Executing RemoveSelectedCardFromHandAndReposition for card with network id:" + SelectedCardNetId.ToString());
+        // if a card is already selected by the player, remove it as their selected card and add it back to their Hand
+        if (selectedCard)
+        {
+            myPlayerCardHand.GetComponent<PlayerHand>().AddCardBackToHand(selectedCard);
+            selectedCard.GetComponent<Card>().isClickable = true;
+            selectedCard = null;
+        }
+        if (!selectedCard)
+        {
+            // set selectedCard and remove from the PlayerHand's Hand list
+            selectedCard = NetworkIdentity.spawned[SelectedCardNetId].gameObject;
+            myPlayerCardHand.GetComponent<PlayerHand>().Hand.Remove(selectedCard);
+            selectedCard.GetComponent<Card>().isClickable = false;
+
+            selectedCard.SetActive(true);
+            selectedCard.transform.SetParent(GameplayManager.instance.localPlayerBattlePanel.transform);
+            selectedCard.transform.localPosition = new Vector3(-27f, -110f, 1f);
+            selectedCard.transform.localScale = new Vector3(70f, 70f, 1f);
+            GameplayManager.instance.ShowPlayerCardScore();
+        }
+    }
+    [Server]
+    void DetermineWhoWonBattle()
+    {
+        Debug.Log("Executing DetermineWhoWonBattle on server");
+        GameplayManager.instance.winnerOfBattleName = "";
+        GameplayManager.instance.winnerOfBattlePlayerNumber = -1;
+        GameplayManager.instance.winnerOfBattlePlayerConnId = -1;
+        GameplayManager.instance.reasonForWinning = "";
+        GamePlayer player1 = null;
+        GamePlayer player2 = null;
+
+        foreach (GamePlayer gamePlayer in Game.GamePlayers)
+        {
+            if (gamePlayer.playerNumber == 1)
+                player1 = gamePlayer;
+            else
+                player2 = gamePlayer;
+        }
+        Card player1Card = NetworkIdentity.spawned[player1.playerBattleCardNetId].gameObject.GetComponent<Card>();
+        Card player2Card = NetworkIdentity.spawned[player2.playerBattleCardNetId].gameObject.GetComponent<Card>();
+
+        int player1BattleScore = 0;
+        int player2BattleScore = 0;
+        //Calculate player 1 score
+        player1BattleScore = player1.playerBattleScore;
+        player1BattleScore += player1Card.Power;
+        //Calculate player2 score
+        player2BattleScore = player2.playerBattleScore;
+        player2BattleScore += player2Card.Power;
+
+        if (player1BattleScore > player2BattleScore)
+        {
+            Debug.Log("Player 1 wins battle. Player1 score: " + player1BattleScore.ToString() + " Player2 score: " + player2BattleScore.ToString());
+            GameplayManager.instance.winnerOfBattleName = player1.PlayerName;
+            GameplayManager.instance.winnerOfBattlePlayerNumber = player1.playerNumber;
+            GameplayManager.instance.winnerOfBattlePlayerConnId = player1.ConnectionId;
+            GameplayManager.instance.reasonForWinning = "Battle Score";
+        }
+        else if (player1BattleScore < player2BattleScore)
+        {
+            Debug.Log("Player 2 wins battle. Player1 score: " + player1BattleScore.ToString() + " Player2 score: " + player2BattleScore.ToString());
+            GameplayManager.instance.winnerOfBattleName = player2.PlayerName;
+            GameplayManager.instance.winnerOfBattlePlayerNumber = player2.playerNumber;
+            GameplayManager.instance.winnerOfBattlePlayerConnId = player2.ConnectionId;
+            GameplayManager.instance.reasonForWinning = "Battle Score";
+        }
+        else if (player1BattleScore == player2BattleScore)
+        {
+            //First tie breaker: Player with highest card value wins
+            if (player1Card.Power > player2Card.Power)
+            {
+                Debug.Log("Player 1 wins first tie breaker: Higher card power");
+                GameplayManager.instance.winnerOfBattleName = player1.PlayerName;
+                GameplayManager.instance.winnerOfBattlePlayerNumber = player1.playerNumber;
+                GameplayManager.instance.winnerOfBattlePlayerConnId = player1.ConnectionId;
+                GameplayManager.instance.reasonForWinning = "Tie Breaker 1: Highest Card Power";
+            }
+            else if (player1Card.Power < player2Card.Power)
+            {
+                Debug.Log("Player 2 wins first tie breaker: Higher card power");
+                GameplayManager.instance.winnerOfBattleName = player2.PlayerName;
+                GameplayManager.instance.winnerOfBattlePlayerNumber = player2.playerNumber;
+                GameplayManager.instance.winnerOfBattlePlayerConnId = player2.ConnectionId;
+                GameplayManager.instance.reasonForWinning = "Tie Breaker 1: Highest Card Power";
+            }
+            else if (player1Card.Power == player2Card.Power)
+            {
+                //Checking for second tie breaker: Player with most infantry wins
+                if (player1.playerArmyNumberOfInf > player2.playerArmyNumberOfInf)
+                {
+                    Debug.Log("Player 1 wins second tie breaker: More infantry than other player");
+                    GameplayManager.instance.winnerOfBattleName = player1.PlayerName;
+                    GameplayManager.instance.winnerOfBattlePlayerNumber = player1.playerNumber;
+                    GameplayManager.instance.winnerOfBattlePlayerConnId = player1.ConnectionId;
+                    GameplayManager.instance.reasonForWinning = "Tie Breaker 2: Most Infantry";
+                }
+                else if (player1.playerArmyNumberOfInf < player2.playerArmyNumberOfInf)
+                {
+                    Debug.Log("Player 2 wins second tie breaker: More infantry than other player");
+                    GameplayManager.instance.winnerOfBattleName = player2.PlayerName;
+                    GameplayManager.instance.winnerOfBattlePlayerNumber = player2.playerNumber;
+                    GameplayManager.instance.winnerOfBattlePlayerConnId = player2.ConnectionId;
+                    GameplayManager.instance.reasonForWinning = "Tie Breaker 2: Most Infantry";
+                }
+                else if (player1.playerArmyNumberOfInf == player2.playerArmyNumberOfInf)
+                {
+                    Debug.Log("The battle was a tie! Same card power and same number of infantry. Player1 score: " + player1BattleScore.ToString() + " Player2 score: " + player2BattleScore.ToString());
+                    GameplayManager.instance.winnerOfBattleName = "tie";
+                    GameplayManager.instance.winnerOfBattlePlayerNumber = -1;
+                    GameplayManager.instance.winnerOfBattlePlayerConnId = -1;
+                    GameplayManager.instance.reasonForWinning = "Draw: No Winner";
+                }
+            }
+        }
     }
 }

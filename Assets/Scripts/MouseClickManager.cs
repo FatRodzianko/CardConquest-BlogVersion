@@ -5,12 +5,14 @@ using Mirror;
 
 public class MouseClickManager : MonoBehaviour
 {
-    [SerializeField]
-    private LayerMask unitLayer;
+    [Header("Player Units")]
     public List<GameObject> unitsSelected;
+    public GameObject cardSelected;
 
-    [SerializeField]
-    private LayerMask landLayer;
+    [Header("Clickable Layers")]
+    [SerializeField] private LayerMask unitLayer;
+    [SerializeField] private LayerMask landLayer;
+    [SerializeField] private LayerMask playerCardLayer;
 
     public static MouseClickManager instance;
 
@@ -19,6 +21,7 @@ public class MouseClickManager : MonoBehaviour
     [SerializeField] private GamePlayer LocalGamePlayerScript;
 
     public bool canSelectUnitsInThisPhase = false;
+    public bool canSelectPlayerCardsInThisPhase = false;
     // Start is called before the first frame update
     void Start()
     {
@@ -112,6 +115,14 @@ public class MouseClickManager : MonoBehaviour
             {
                 unitsSelected[0].GetComponent<UnitScript>().AskServerCanUnitsMove(rayHitLand.collider.gameObject, rayHitLand.collider.gameObject.transform.position, unitsSelected);
             }
+            if (canSelectPlayerCardsInThisPhase)
+            {
+                RaycastHit2D rayHitCard = Physics2D.Raycast(mousePosition2d, Vector2.zero, Mathf.Infinity, playerCardLayer);
+                if (rayHitCard.collider != null)
+                {
+                    SelectCardClicked(rayHitCard.collider.gameObject);
+                }
+            }
         }
         if (Input.GetMouseButtonDown(1) && EscMenuManager.instance.IsMainMenuOpen == false)
         {
@@ -153,6 +164,34 @@ public class MouseClickManager : MonoBehaviour
     {
         LocalGamePlayer = GameObject.Find("LocalGamePlayer");
         LocalGamePlayerScript = LocalGamePlayer.GetComponent<GamePlayer>();
+    }
+    public void SelectCardClicked(GameObject cardClicked)
+    {
+        if (cardClicked)
+        {
+            if (cardClicked.GetComponent<NetworkIdentity>().hasAuthority)
+            {
+                Card cardScript = cardClicked.GetComponent<Card>();
+                if (cardScript.isClickable)
+                {
+                    cardScript.CardClickedOn();
+                    if (cardSelected != cardClicked && cardSelected)
+                    {
+                        Card cardSelectedScript = cardSelected.GetComponent<Card>();
+                        cardSelectedScript.CardClickedOn();
+                    }
+                    if (cardSelected == cardClicked)
+                    {
+                        cardSelected = null;
+                    }
+                    else
+                    {
+                        cardSelected = cardClicked;
+                    }
+                    GameplayManager.instance.ToggleSelectThisCardButton();
+                }
+            }
+        }
     }
 
 }

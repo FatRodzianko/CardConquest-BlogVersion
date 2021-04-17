@@ -72,16 +72,42 @@ public class PlayerHand : NetworkBehaviour
     public void ShowPlayerHandOnScreen()
     {
         isPlayerViewingTheirHand = true;
-        Vector3 cardLocation = new Vector3(-10f, 1.5f, 0f);
-        foreach (GameObject playerCard in Hand)
+        if (GameplayManager.instance.currentGamePhase.StartsWith("Choose Card"))
         {
-            if (!playerCard.activeInHierarchy)
+            Vector3 cardLocation = Camera.main.transform.position;
+            cardLocation.x -= 7f;
+            cardLocation.z = 0f;
+            Vector3 cardScale = new Vector3(1.5f, 1.5f, 0f);
+            foreach (GameObject playerCard in Hand)
             {
-                playerCard.SetActive(true);
-                
+                if (!playerCard.activeInHierarchy)
+                {
+                    playerCard.SetActive(true);
+                }
+                playerCard.transform.position = cardLocation;
+                playerCard.transform.localScale = cardScale;
+                cardLocation.x += 3.5f;
             }
-            playerCard.transform.position = cardLocation;
-            cardLocation.x += 4.5f;
+            if (GameplayManager.instance.localPlayerBattlePanel && GameplayManager.instance.opponentPlayerBattlePanel)
+            {
+                GameplayManager.instance.localPlayerBattlePanel.SetActive(false);
+                GameplayManager.instance.opponentPlayerBattlePanel.SetActive(false);
+            }
+        }
+        else
+        {
+            Vector3 cardLocation = new Vector3(-10f, 1.5f, 0f);
+            Vector3 cardScale = new Vector3(1.75f, 1.75f, 0f);
+            foreach (GameObject playerCard in Hand)
+            {
+                if (!playerCard.activeInHierarchy)
+                {
+                    playerCard.SetActive(true);
+                }
+                playerCard.transform.position = cardLocation;
+                playerCard.transform.localScale = cardScale;
+                cardLocation.x += 4.5f;
+            }
         }
         // Hide land text since it displays over cards
         GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
@@ -101,11 +127,41 @@ public class PlayerHand : NetworkBehaviour
                 playerCard.SetActive(false);
             }
         }
-        GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
-        foreach (Transform landChild in landHolder.transform)
+        if (GameplayManager.instance.currentGamePhase.StartsWith("Choose Card"))
         {
-            LandScript landScript = landChild.GetComponent<LandScript>();
-            landScript.UnHideUnitText();
+            GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
+            foreach (Transform landChild in landHolder.transform)
+            {
+                if (landChild.gameObject.GetComponent<NetworkIdentity>().netId == GameplayManager.instance.currentBattleSite)
+                {
+                    LandScript landScript = landChild.GetComponent<LandScript>();
+                    landScript.UnHideUnitText();
+                }
+            }
+            if (GameplayManager.instance.localPlayerBattlePanel && GameplayManager.instance.opponentPlayerBattlePanel)
+            {
+                GameplayManager.instance.localPlayerBattlePanel.SetActive(true);
+                GameplayManager.instance.opponentPlayerBattlePanel.SetActive(true);
+            }
         }
+        else
+        {
+            GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
+            foreach (Transform landChild in landHolder.transform)
+            {
+                LandScript landScript = landChild.GetComponent<LandScript>();
+                landScript.UnHideUnitText();
+            }
+        }
+    }
+    public void AddCardBackToHand(GameObject cardToAdd)
+    {
+        if (Hand.Contains(cardToAdd))
+            return;
+        Hand.Add(cardToAdd);
+        cardToAdd.transform.SetParent(this.gameObject.transform);
+        cardToAdd.transform.localScale = new Vector3(1.5f, 1.5f, 0f);
+        cardToAdd.SetActive(false);
+        Hand = Hand.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
     }
 }

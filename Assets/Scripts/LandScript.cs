@@ -471,4 +471,18 @@ public class LandScript : NetworkBehaviour
             battleNumberTextObject.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("#" + battleSiteNumber);
         }
     }
+    public void HideBattleHighlight()
+    {
+        if (battleOutlineObject)
+        {
+            battleOutlineObject.SetActive(false);
+        }
+    }
+    public void UnHideBattleHighlight()
+    {
+        if (battleOutlineObject)
+        {
+            battleOutlineObject.SetActive(true);
+        }
+    }
 }

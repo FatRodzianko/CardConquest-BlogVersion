@@ -52,7 +52,7 @@ public class GameplayManager : NetworkBehaviour
     public SyncDictionary<int, uint> battleSiteNetIds = new SyncDictionary<int, uint>();
     public bool haveBattleSitesBeenDone = false;
     [SyncVar] public int battleNumber;
-    [SyncVar] public uint currentBattleSite;
+    [SyncVar(hook = nameof(HandleCurrentBattleSiteUpdate))] public uint currentBattleSite;
 
     [Header("Ready Buttons")]
     [SerializeField] private GameObject startBattlesButton;
@@ -60,6 +60,22 @@ public class GameplayManager : NetworkBehaviour
     [Header("Choose Cards Section")]
     [SerializeField] private GameObject ChooseCardsPanel;
     [SerializeField] private GameObject confirmCardButton;
+    [SerializeField] private GameObject selectThisCardButton;
+    private bool localZoomedInOnBattleSite = false;
+    [SerializeField] private GameObject playerBattlePanelPrefab;
+    public GameObject localPlayerBattlePanel;
+    public GameObject opponentPlayerBattlePanel;
+    private GameObject localCardText;
+    private GameObject localCardPower;
+    private GameObject opponentCardText;
+    private GameObject opponentSelectCardText;
+    private GameObject opponentCardPower;
+
+    [Header("Battle Results")]
+    [SyncVar] public string winnerOfBattleName;
+    [SyncVar] public int winnerOfBattlePlayerNumber;
+    [SyncVar] public int winnerOfBattlePlayerConnId;
+    [SyncVar] public string reasonForWinning;
 
     // Start is called before the first frame update
     private void Awake()
@@ -114,6 +130,10 @@ public class GameplayManager : NetworkBehaviour
             endUnitPlacementButton.SetActive(false);
         if (UnitMovementUI.activeInHierarchy)
             UnitMovementUI.SetActive(false);
+        if (BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(false);
+        if (ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(false);
     }
     public void PutUnitsInUnitBox()
     {
@@ -273,6 +293,11 @@ public class GameplayManager : NetworkBehaviour
         Debug.Log("Activating the Unit Movement UI");
         if (!UnitMovementUI.activeInHierarchy && currentGamePhase == "Unit Movement")
             UnitMovementUI.SetActive(true);
+        if (BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(false);
+        if (ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(false);
+
         if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
             unitMovementNoUnitsMovedText.gameObject.SetActive(true);
         if (!endUnitMovementButton.activeInHierarchy)
@@ -431,6 +456,10 @@ public class GameplayManager : NetworkBehaviour
             hidePlayerHandButton.SetActive(false);
             //PlayerHand.instance.HidePlayerHandOnScreen();
             LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            if (currentGamePhase.StartsWith("Choose Card"))
+            {
+                MouseClickManager.instance.SelectCardClicked(MouseClickManager.instance.cardSelected);
+            }
         }
 
     }
@@ -468,26 +497,37 @@ public class GameplayManager : NetworkBehaviour
         if (currentGamePhase == "Unit Placement" && newGamePhase == "Unit Movement")
         {
             MouseClickManager.instance.canSelectUnitsInThisPhase = true;
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
             currentGamePhase = newGamePhase;
             EndUnitPlacementPhase();
         }
         if (currentGamePhase == "Unit Movement" && newGamePhase == "Unit Movement")
         {
             MouseClickManager.instance.canSelectUnitsInThisPhase = true;
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
             currentGamePhase = newGamePhase;
             StartUnitMovementPhase();
         }
         if (currentGamePhase == "Unit Movement" && newGamePhase == "Battle(s) Detected")
         {
             MouseClickManager.instance.canSelectUnitsInThisPhase = false;
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
             currentGamePhase = newGamePhase;
             StartBattlesDetected();
         }
         if (currentGamePhase == "Battle(s) Detected" && newGamePhase.StartsWith("Choose Cards"))
         {
             MouseClickManager.instance.canSelectUnitsInThisPhase = false;
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = true;
             currentGamePhase = newGamePhase;
             StartChooseCards();
+        }
+        if (currentGamePhase.StartsWith("Choose Cards") && newGamePhase == "Battle Results")
+        {
+            MouseClickManager.instance.canSelectUnitsInThisPhase = false;
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
+            currentGamePhase = newGamePhase;
+            StartBattleResults();
         }
     }
     public void UpdateReadyButton()
@@ -541,6 +581,42 @@ public class GameplayManager : NetworkBehaviour
             {
                 Debug.Log("Local Player IS NOT ready to go to next phase.");
                 startBattlesButton.GetComponentInChildren<Text>().text = "Start Battles";
+            }
+        }
+        if (currentGamePhase.StartsWith("Choose Card"))
+        {
+            if (LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                Debug.Log("Local Player is ready to go to next phase.");
+                confirmCardButton.GetComponentInChildren<Text>().text = "Unready";
+                if (showPlayerHandButton.activeInHierarchy)
+                {
+                    showPlayerHandButton.GetComponentInChildren<Text>().text = "Cards In Hand";
+                }
+                //Make cards in hand unclickable
+                foreach (GameObject playerCard in LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().Hand)
+                {
+                    Card playerCardScript = playerCard.GetComponent<Card>();
+                    playerCardScript.isClickable = false;
+                }
+            }
+            else
+            {
+                Debug.Log("Local Player IS NOT ready to go to next phase.");
+                confirmCardButton.GetComponentInChildren<Text>().text = "Confirm Card";
+                if (showPlayerHandButton.activeInHierarchy)
+                {
+                    if (LocalGamePlayerScript.selectedCard)
+                        showPlayerHandButton.GetComponentInChildren<Text>().text = "Change Card";
+                    else
+                        showPlayerHandButton.GetComponentInChildren<Text>().text = "Select Card";
+                }
+                //Make cards in hand clickable again
+                foreach (GameObject playerCard in LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().Hand)
+                {
+                    Card playerCardScript = playerCard.GetComponent<Card>();
+                    playerCardScript.isClickable = true;
+                }
             }
         }
     }
@@ -692,6 +768,9 @@ public class GameplayManager : NetworkBehaviour
             UnitMovementUI.SetActive(false);
         if (!BattlesDetectedPanel.activeInHierarchy)
             BattlesDetectedPanel.SetActive(true);
+        if (ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(false);
+
 
         // Move buttons to the BattlesDetectedPanel
 
@@ -817,6 +896,8 @@ public class GameplayManager : NetworkBehaviour
         if (!startBattlesButton.activeInHierarchy)
             startBattlesButton.SetActive(true);
 
+        showPlayerHandButton.GetComponentInChildren<Text>().text = "Select Card";
+
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
             LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
@@ -837,4 +918,230 @@ public class GameplayManager : NetworkBehaviour
             isPlayerViewingOpponentHand = false;
         }
     }
+    public void HandleCurrentBattleSiteUpdate(uint oldValue, uint newValue)
+    {
+        if (isServer)
+        {
+            currentBattleSite = newValue;
+        }
+        if (isClient)
+        {
+            ZoomOnBattleSite();
+            HideNonBattleUnits();
+            HideNonBattleLandTextAndHighlights();
+            SetGamePlayerArmy();
+        }
+    }
+    void ZoomOnBattleSite()
+    {
+        if (!localZoomedInOnBattleSite)
+        {
+            Debug.Log("Starting ZoomOnBattleSite for battle site with network id: " + currentBattleSite.ToString());
+            GameObject battleSite = NetworkIdentity.spawned[currentBattleSite].gameObject;
+            Vector3 newCameraPosition = battleSite.transform.position;
+            Camera.main.orthographicSize = 5f;
+            newCameraPosition.x += 2.15f;
+            newCameraPosition.z = -10f;
+            Camera.main.transform.position = newCameraPosition;
+
+            localZoomedInOnBattleSite = true;
+        }
+        
+    }
+    void HideNonBattleUnits()
+    {
+        GameObject[] PlayerUnitHolders = GameObject.FindGameObjectsWithTag("PlayerUnitHolder");
+        foreach (GameObject unitHolder in PlayerUnitHolders)
+        {
+            foreach (Transform unitChild in unitHolder.transform)
+            {
+                UnitScript unitChildScript = unitChild.gameObject.GetComponent<UnitScript>();
+                if (unitChildScript.currentLandOccupied.GetComponent<NetworkIdentity>().netId != currentBattleSite)
+                    unitChild.gameObject.SetActive(false);
+                else
+                    unitChild.gameObject.SetActive(true);
+            }
+        }
+    }
+    void HideNonBattleLandTextAndHighlights()
+    {
+        GameObject allLand = GameObject.FindGameObjectWithTag("LandHolder");
+        foreach (Transform landObject in allLand.transform)
+        {
+            LandScript landScript = landObject.gameObject.GetComponent<LandScript>();
+            if (landObject.gameObject.GetComponent<NetworkIdentity>().netId != currentBattleSite)
+            {
+                landScript.HideUnitText();
+                landScript.HideBattleHighlight();
+            }
+            else
+            {
+                landScript.UnHideUnitText();
+                landScript.UnHideBattleHighlight();
+            }
+        }
+    }
+    void SetGamePlayerArmy()
+    {
+        LocalGamePlayerScript.SetGamePlayerArmy();
+    }
+    public void CheckIfAllPlayerBattleScoresSet()
+    {
+        Debug.Log("Executing CheckIfAllPlayerBattleScoresSet");
+        bool haveAllBattleScoresBeenSet = false;
+        if (!LocalGamePlayerScript.isPlayerBattleScoreSet)
+        {
+            Debug.Log("CheckIfAllPlayerBattleScoresSet: LocalGamePlayer not ready");
+            return;
+        }
+        else
+            haveAllBattleScoresBeenSet = LocalGamePlayerScript.isPlayerBattleScoreSet;
+
+        GameObject[] allGamePlayers = GameObject.FindGameObjectsWithTag("GamePlayer");
+        foreach (GameObject gamePlayer in allGamePlayers)
+        {
+            GamePlayer gamePlayerScript = gamePlayer.GetComponent<GamePlayer>();
+            if (!gamePlayerScript.isPlayerBattleScoreSet)
+            {
+                haveAllBattleScoresBeenSet = false;
+                Debug.Log("CheckIfAllPlayerBattleScoresSet: " + gamePlayerScript.PlayerName + " not ready");
+                break;
+            }
+            else
+            {
+                haveAllBattleScoresBeenSet = gamePlayerScript.isPlayerBattleScoreSet;
+            }
+        }
+        if (haveAllBattleScoresBeenSet)
+        {
+            Debug.Log("CheckIfAllPlayerBattleScoresSet: all gameplayers are ready!");
+            CreateBattlePanels();
+        }
+    }
+    void CreateBattlePanels()
+    {
+        Debug.Log("Executing CreateBattlePanels");
+        // Spawn the local player's battle panel
+        if (!localPlayerBattlePanel)
+        {
+            localPlayerBattlePanel = Instantiate(playerBattlePanelPrefab);
+            localPlayerBattlePanel.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+            // set the values for the local player's battle panel
+            foreach (Transform childTransform in localPlayerBattlePanel.transform)
+            {
+                if (childTransform.name == "PlayerName")
+                {
+                    childTransform.GetComponent<Text>().text = LocalGamePlayerScript.PlayerName + "'s Battle Power";
+                }
+                if (childTransform.name == "TankPower")
+                {
+                    int tankPower = LocalGamePlayerScript.playerArmyNumberOfTanks * 2;
+                    childTransform.GetComponent<Text>().text = tankPower.ToString();
+                }
+                if (childTransform.name == "InfPower")
+                {
+                    childTransform.GetComponent<Text>().text = LocalGamePlayerScript.playerArmyNumberOfInf.ToString();
+                }
+                if (childTransform.name == "ArmyPower")
+                {
+                    childTransform.GetComponent<Text>().text = LocalGamePlayerScript.playerBattleScore.ToString();
+                }
+                if (childTransform.name == "CardText")
+                {
+                    localCardText = childTransform.gameObject;
+                    localCardText.SetActive(false);
+                }
+                if (childTransform.name == "CardPower")
+                {
+                    localCardPower = childTransform.gameObject;
+                    localCardPower.SetActive(false);
+                }
+            }
+        }
+
+        //Spawn the opponent's battle panel
+        if (!opponentPlayerBattlePanel)
+        {
+            opponentPlayerBattlePanel = Instantiate(playerBattlePanelPrefab);
+            opponentPlayerBattlePanel.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
+            opponentPlayerBattlePanel.GetComponent<RectTransform>().anchoredPosition = new Vector3(770f, 0f, 0f);
+            GamePlayer opponentPlayerScript = GameObject.FindGameObjectWithTag("GamePlayer").GetComponent<GamePlayer>();
+            foreach (Transform childTransform in opponentPlayerBattlePanel.transform)
+            {
+                if (childTransform.name == "PlayerName")
+                {
+                    childTransform.GetComponent<Text>().text = opponentPlayerScript.PlayerName + "'s Battle Power";
+                }
+                if (childTransform.name == "TankPower")
+                {
+                    int tankPower = opponentPlayerScript.playerArmyNumberOfTanks * 2;
+                    childTransform.GetComponent<Text>().text = tankPower.ToString();
+                }
+                if (childTransform.name == "InfPower")
+                {
+                    childTransform.GetComponent<Text>().text = opponentPlayerScript.playerArmyNumberOfInf.ToString();
+                }
+                if (childTransform.name == "ArmyPower")
+                {
+                    childTransform.GetComponent<Text>().text = opponentPlayerScript.playerBattleScore.ToString();
+                }
+                if (childTransform.name == "YourCard")
+                {
+                    opponentSelectCardText = childTransform.gameObject;
+                    opponentSelectCardText.GetComponent<Text>().text = "Opponent's card:";
+                    opponentSelectCardText.SetActive(false);
+                }
+                if (childTransform.name == "CardText")
+                {
+                    opponentCardText = childTransform.gameObject;
+                    opponentCardText.SetActive(false);
+                }
+                if (childTransform.name == "CardPower")
+                {
+                    opponentCardPower = childTransform.gameObject;
+                    opponentCardPower.SetActive(false);
+                }
+            }
+        }
+
+    }
+    public void ToggleSelectThisCardButton()
+    {
+        bool isACardSelected = false;
+        if (MouseClickManager.instance.cardSelected)
+            isACardSelected = true;
+        else
+            isACardSelected = false;
+        
+        if (isACardSelected)
+            selectThisCardButton.SetActive(true);
+        else
+            selectThisCardButton.SetActive(false);
+    }
+    public void SelectThisCard()
+    {
+        if (MouseClickManager.instance.cardSelected)
+        {
+            LocalGamePlayerScript.SelectThisCard(MouseClickManager.instance.cardSelected);
+        }
+    }
+    public void ShowPlayerCardScore()
+    {
+        if (LocalGamePlayerScript.selectedCard)
+        {
+            localCardText.SetActive(true);
+            int playerScoreWithCard = LocalGamePlayerScript.playerBattleScore + LocalGamePlayerScript.selectedCard.GetComponent<Card>().Power;
+            localCardPower.GetComponent<Text>().text = playerScoreWithCard.ToString();
+            localCardPower.SetActive(true);
+            showPlayerHandButton.GetComponentInChildren<Text>().text = "Change Card";
+            if (!confirmCardButton.activeInHierarchy)
+                confirmCardButton.SetActive(true);
+        }
+    }
+    void StartBattleResults()
+    {
+        Debug.Log("Starting Battle Results");
+        SetGamePhaseText();
+    }
+
 }
