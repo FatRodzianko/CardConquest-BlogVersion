@@ -71,9 +71,9 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 2
+  m_SortingLayerID: 1097648893
+  m_SortingLayer: 1
+  m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: d7e9bbdbb78be0249a0da93d69422a18, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -153,10 +153,14 @@ MonoBehaviour:
   currentlySelected: 0
   currentLandOccupied: {fileID: 0}
   previouslyOccupiedLand: {fileID: 0}
+  newPosition: {x: 0, y: 0, z: 0}
+  startingPosition: {x: 0, y: 0, z: 0}
   landLayer:
     serializedVersion: 2
     m_Bits: 512
   placedDuringUnitPlacement: 0
+  unitDeadIconPrefab: {fileID: 8605882006633922116, guid: 3880ea9afa8667948baa6dbffa204ef8,
+    type: 3}
 --- !u!114 &5015333483904512535
 MonoBehaviour:
   m_ObjectHideFlags: 0

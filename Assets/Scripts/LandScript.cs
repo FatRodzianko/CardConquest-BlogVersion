@@ -34,7 +34,7 @@ public class LandScript : NetworkBehaviour
     public List<GameObject> Player1Tank = new List<GameObject>();
     public List<GameObject> Player2Inf = new List<GameObject>();
     public List<GameObject> Player2Tank = new List<GameObject>();
-    public List<GameObject> BattleUnitTexts = new List<GameObject>();
+    public Dictionary<GameObject, int> BattleUnitTexts = new Dictionary<GameObject, int>();
 
     [Header("Text Objects")]
     [SerializeField] private GameObject battleNumberTextPrefab;
@@ -282,10 +282,10 @@ public class LandScript : NetworkBehaviour
         }
         if (BattleUnitTexts.Count > 0)
         {
-            foreach (GameObject battleText in BattleUnitTexts)
+            foreach (KeyValuePair<GameObject, int> battleText in BattleUnitTexts)
             {
-                if (battleText)
-                    battleText.SetActive(false);
+                if (battleText.Key)
+                    battleText.Key.SetActive(false);
             }
         }
         if (battleNumberTextObject)
@@ -303,10 +303,10 @@ public class LandScript : NetworkBehaviour
         }
         if (BattleUnitTexts.Count > 0)
         {
-            foreach (GameObject battleText in BattleUnitTexts)
+            foreach (KeyValuePair<GameObject, int> battleText in BattleUnitTexts)
             {
-                if (battleText)
-                    battleText.SetActive(true);
+                if (battleText.Key)
+                    battleText.Key.SetActive(true);
             }
         }
         if (battleNumberTextObject)
@@ -421,7 +421,7 @@ public class LandScript : NetworkBehaviour
             player1InfText.transform.localPosition = player1InfTextPosition;
 
             player1InfText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player1Inf.Count.ToString());
-            BattleUnitTexts.Add(player1InfText);
+            BattleUnitTexts.Add(player1InfText, 1);
         }
         if (Player1Tank.Count > 1)
         {
@@ -433,7 +433,7 @@ public class LandScript : NetworkBehaviour
             player1TankText.transform.localPosition = player1TankTextPosition;
 
             player1TankText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player1Tank.Count.ToString());
-            BattleUnitTexts.Add(player1TankText);
+            BattleUnitTexts.Add(player1TankText,1);
         }
 
         //Spawn unit text for player2
@@ -447,7 +447,7 @@ public class LandScript : NetworkBehaviour
             player2InfText.transform.localPosition = player2InfTextPosition;
 
             player2InfText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player2Inf.Count.ToString());
-            BattleUnitTexts.Add(player2InfText);
+            BattleUnitTexts.Add(player2InfText, 2);
         }
         if (Player2Tank.Count > 1)
         {
@@ -459,7 +459,7 @@ public class LandScript : NetworkBehaviour
             player2TankText.transform.localPosition = player2TankTextPosition;
 
             player2TankText.transform.GetChild(0).GetComponent<TextMeshPro>().SetText("x" + Player2Tank.Count.ToString());
-            BattleUnitTexts.Add(player2TankText);
+            BattleUnitTexts.Add(player2TankText, 2);
         }
     }
     public void SpawnBattleNumberText(int battleSiteNumber)
@@ -483,6 +483,125 @@ public class LandScript : NetworkBehaviour
         if (battleOutlineObject)
         {
             battleOutlineObject.SetActive(true);
+        }
+    }
+    public void ExpandLosingUnits(int losingPlayerNumber)
+    {
+        if (losingPlayerNumber != -1)
+        {
+            Debug.Log("Expanding the units of player number: " + losingPlayerNumber.ToString());
+            List<GameObject> losingPlayerTanks = new List<GameObject>();
+            List<GameObject> losingPlayerInf = new List<GameObject>();
+            Vector3 winngingPlayerPosition = new Vector3(0, 0, 0);
+
+            foreach (KeyValuePair<uint, int> units in UnitNetIdsAndPlayerNumber)
+            {
+                if (units.Value == losingPlayerNumber)
+                {
+                    GameObject unit = NetworkIdentity.spawned[units.Key].gameObject;
+                    if (unit.gameObject.tag == "tank")
+                        losingPlayerTanks.Add(unit);
+                    else if (unit.gameObject.tag == "infantry")
+                        losingPlayerInf.Add(unit);
+                }
+                else
+                    winngingPlayerPosition = NetworkIdentity.spawned[units.Key].gameObject.transform.position;
+            }
+            Vector3 temp;
+            int playerXMultiplier = 0;
+            if (losingPlayerInf.Count > 1)
+            {
+                if (losingPlayerInf[0].transform.position.x > winngingPlayerPosition.x)
+                    playerXMultiplier = 1;
+                else
+                    playerXMultiplier = -1;
+            }
+            else if (losingPlayerTanks.Count > 1)
+            {
+                if (losingPlayerTanks[0].transform.position.x > winngingPlayerPosition.x)
+                    playerXMultiplier = 1;
+                else
+                    playerXMultiplier = -1;
+            }
+            if (playerXMultiplier != 0)
+                ExpandUnitsForBattleResults(losingPlayerTanks, losingPlayerInf, playerXMultiplier);
+            //remove battle texts for losing player
+            List<GameObject> losingPlayerBattleTextToDestroy = new List<GameObject>();
+            foreach (KeyValuePair<GameObject, int> battleText in BattleUnitTexts)
+            {
+                if (battleText.Value == losingPlayerNumber)
+                {
+                    losingPlayerBattleTextToDestroy.Add(battleText.Key);
+                }
+            }
+            foreach (GameObject textToDestroy in losingPlayerBattleTextToDestroy)
+            {
+                BattleUnitTexts.Remove(textToDestroy);
+                GameObject textObject = textToDestroy;
+                Destroy(textObject);
+                textObject = null;
+            }
+            losingPlayerBattleTextToDestroy.Clear();
+        }
+    }
+    void ExpandUnitsForBattleResults(List<GameObject> tanks, List<GameObject> inf, int playerXMultiplier)
+    {
+        Vector3 temp;
+        if (inf.Count > 1)
+        {
+            for (int i = 1; i < inf.Count; i++)
+            {
+                if (i == 1)
+                {
+                    temp = inf[i].transform.position;
+                    temp.x += (0.65f * playerXMultiplier);
+                    inf[i].transform.position = temp;
+                }
+                else if (i == 2)
+                {
+                    temp = inf[i].transform.position;
+                    temp.y -= 0.8f;
+                    inf[i].transform.position = temp;
+                }
+                else if (i == 3)
+                {
+                    temp = inf[i].transform.position;
+                    temp.y -= 0.8f;
+                    temp.x += (0.65f * playerXMultiplier);
+                    inf[i].transform.position = temp;
+                }
+                else if (i == 4)
+                {
+                    temp = inf[i].transform.position;
+                    temp.y += 0.8f;
+                    inf[i].transform.position = temp;
+                }
+            }
+        }
+        if (tanks.Count > 1)
+        {
+            for (int i = 1; i < tanks.Count; i++)
+            {
+                if (i == 1)
+                {
+                    temp = tanks[i].transform.position;
+                    temp.x += (0.95f * playerXMultiplier);
+                    tanks[i].transform.position = temp;
+                }
+                else if (i == 2)
+                {
+                    temp = tanks[i].transform.position;
+                    temp.y += 0.6f;
+                    tanks[i].transform.position = temp;
+                }
+                else if (i == 3)
+                {
+                    temp = tanks[i].transform.position;
+                    temp.y += 0.6f;
+                    temp.x += (0.95f * playerXMultiplier);
+                    tanks[i].transform.position = temp;
+                }
+            }
         }
     }
 }

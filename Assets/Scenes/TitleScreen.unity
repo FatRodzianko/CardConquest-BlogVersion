@@ -1936,6 +1936,7 @@ MonoBehaviour:
     type: 3}
   gamePlayerPrefab: {fileID: 7704455394426560920, guid: cef153ee62778fc48be914a5ba4c4681,
     type: 3}
+  CurrentGamePhase: 
 --- !u!4 &817632463
 Transform:
   m_ObjectHideFlags: 0

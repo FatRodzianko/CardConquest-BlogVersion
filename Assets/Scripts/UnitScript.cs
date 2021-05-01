@@ -28,6 +28,10 @@ public class UnitScript : NetworkBehaviour
 
     public bool placedDuringUnitPlacement = false;
 
+    [Header("Unit Outlines and Icons")]
+    [SerializeField] GameObject unitDeadIconPrefab;
+    GameObject unitDeadIconObject;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -361,6 +365,14 @@ public class UnitScript : NetworkBehaviour
                     MoveUnit(land.gameObject);
                 }
             }
+        }
+    }
+    public void SpawnUnitDeadIcon()
+    {
+        if (!unitDeadIconObject)
+        {
+            unitDeadIconObject = Instantiate(unitDeadIconPrefab, transform.position, Quaternion.identity);
+            unitDeadIconObject.transform.SetParent(gameObject.transform);
         }
     }
 }

@@ -70,12 +70,34 @@ public class GameplayManager : NetworkBehaviour
     private GameObject opponentCardText;
     private GameObject opponentSelectCardText;
     private GameObject opponentCardPower;
+    [SerializeField] private GameObject showNearybyUnitsButton;
+    public bool showingNearbyUnits = false;
 
     [Header("Battle Results")]
     [SyncVar] public string winnerOfBattleName;
     [SyncVar] public int winnerOfBattlePlayerNumber;
     [SyncVar] public int winnerOfBattlePlayerConnId;
+    [SyncVar] public string loserOfBattleName;
+    [SyncVar] public int loserOfBattlePlayerNumber;
+    [SyncVar] public int loserOfBattlePlayerConnId;
     [SyncVar] public string reasonForWinning;
+    [SyncVar] public int numberOfTanksLost;
+    [SyncVar] public int numberOfInfLost;
+    public SyncList<uint> unitNetIdsLost = new SyncList<uint>();
+    [SyncVar(hook = nameof(HandleAreBattleResultsSet))] public bool areBattleResultsSet = false;
+    private bool updateResultsPanelLocal = false;
+    [SyncVar(hook = nameof(HandleAreUnitsLostCalculated))] public bool unitsLostCalculated = false;
+    private bool unitsLostCalculatedLocal = false;
+    [SyncVar(hook = nameof(HandleUnitsLostFromRetreat))] public bool unitsLostFromRetreat = false;
+    private bool localUnitsLostFromRetreat = false;
+
+    [Header("Battle Results UI")]
+    [SerializeField] GameObject BattleResultsPanel;
+    [SerializeField] private GameObject endBattleResultsButton;
+    [SerializeField] private Text winnerName;
+    [SerializeField] private Text victoryCondition;
+    [SerializeField] private Text unitsLost;
+    [SerializeField] private GameObject retreatingUnitsDestroyed;
 
     // Start is called before the first frame update
     private void Awake()
@@ -134,6 +156,8 @@ public class GameplayManager : NetworkBehaviour
             BattlesDetectedPanel.SetActive(false);
         if (ChooseCardsPanel.activeInHierarchy)
             ChooseCardsPanel.SetActive(false);
+        if (BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(false);
     }
     public void PutUnitsInUnitBox()
     {
@@ -297,6 +321,8 @@ public class GameplayManager : NetworkBehaviour
             BattlesDetectedPanel.SetActive(false);
         if (ChooseCardsPanel.activeInHierarchy)
             ChooseCardsPanel.SetActive(false);
+        if (BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(false);
 
         if (!unitMovementNoUnitsMovedText.gameObject.activeInHierarchy)
             unitMovementNoUnitsMovedText.gameObject.SetActive(true);
@@ -528,6 +554,12 @@ public class GameplayManager : NetworkBehaviour
             MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
             currentGamePhase = newGamePhase;
             StartBattleResults();
+        }
+        if (currentGamePhase == "Battle Results" && newGamePhase == "Retreat Units")
+        {
+            MouseClickManager.instance.canSelectPlayerCardsInThisPhase = false;
+            currentGamePhase = newGamePhase;
+            StartRetreatUnits();
         }
     }
     public void UpdateReadyButton()
@@ -770,6 +802,8 @@ public class GameplayManager : NetworkBehaviour
             BattlesDetectedPanel.SetActive(true);
         if (ChooseCardsPanel.activeInHierarchy)
             ChooseCardsPanel.SetActive(false);
+        if (BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(false);
 
 
         // Move buttons to the BattlesDetectedPanel
@@ -875,6 +909,8 @@ public class GameplayManager : NetworkBehaviour
             BattlesDetectedPanel.SetActive(false);
         if (!ChooseCardsPanel.activeInHierarchy)
             ChooseCardsPanel.SetActive(true);
+        if (BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(false);
 
         // Move buttons to the UnitMovementUI
         hidePlayerHandButton.transform.SetParent(ChooseCardsPanel.GetComponent<RectTransform>(), false);
@@ -1142,6 +1178,203 @@ public class GameplayManager : NetworkBehaviour
     {
         Debug.Log("Starting Battle Results");
         SetGamePhaseText();
+        ActivateBattleResultsUI();
     }
+    void ActivateBattleResultsUI()
+    {
+        if (UnitMovementUI.activeInHierarchy)
+            UnitMovementUI.SetActive(false);
+        if (BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(false);
+        if (ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(false);
+        if (!BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(true);
 
+        localPlayerBattlePanel.transform.SetParent(BattleResultsPanel.GetComponent<RectTransform>(), false);
+        opponentPlayerBattlePanel.transform.SetParent(BattleResultsPanel.GetComponent<RectTransform>(), false);
+
+        if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
+        {
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+        }
+
+        if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
+        {
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed = null;
+            isPlayerViewingOpponentHand = false;
+        }
+        SetOpponentBattleScoreAndCard();
+    }
+    void SetOpponentBattleScoreAndCard()
+    {
+        GamePlayer opponentGamePlayer = GameObject.FindGameObjectWithTag("GamePlayer").GetComponent<GamePlayer>();
+        if (opponentGamePlayer.playerBattleCardNetId > 0)
+        {
+            //find opponent card and reposition it under the opponent battle panel
+            GameObject opponentSelectedCard = NetworkIdentity.spawned[opponentGamePlayer.playerBattleCardNetId].gameObject;
+            opponentGamePlayer.selectedCard = opponentSelectedCard;
+            opponentSelectedCard.SetActive(true);
+            opponentSelectedCard.transform.SetParent(opponentPlayerBattlePanel.transform);
+            opponentSelectedCard.transform.localPosition = new Vector3(-27f, -110f, 1f);
+            opponentSelectedCard.transform.localScale = new Vector3(70f, 70f, 1f);
+
+            //update the opponent's score
+            int opponentBattleScore = opponentGamePlayer.playerBattleScore + opponentSelectedCard.GetComponent<Card>().Power;
+            opponentCardPower.GetComponent<Text>().text = opponentBattleScore.ToString();
+            opponentSelectCardText.SetActive(true);
+            opponentCardText.SetActive(true);
+            opponentCardPower.SetActive(true);
+        }
+    }
+    public void HandleAreBattleResultsSet(bool oldValue, bool newValue)
+    {
+        if (isServer)
+        {
+            areBattleResultsSet = newValue;
+        }
+        if (isClient && newValue && !updateResultsPanelLocal)
+        {
+            UpdateResultsPanel();
+            updateResultsPanelLocal = true;
+        }
+    }
+    void UpdateResultsPanel()
+    {
+        Debug.Log("Executing UpdateResultsPanel");
+        winnerName.text = winnerOfBattleName;
+        victoryCondition.text = reasonForWinning;
+        updateResultsPanelLocal = true;
+        if (reasonForWinning == "Draw: No Winner")
+        {
+            unitsLost.text = "No units lost";
+        }
+    }
+    public void HandleAreUnitsLostCalculated(bool oldValue, bool newValue)
+    {
+        if (isServer)
+        {
+            unitsLostCalculated = newValue;
+        }
+        if (isClient && unitsLostCalculated && !unitsLostCalculatedLocal)
+        {
+            UpdateUnitsLostValues();
+            ShowDeadUnits();
+            unitsLostCalculatedLocal = true;
+        }
+    }
+    void UpdateUnitsLostValues()
+    {
+        Debug.Log("Executing UpdateUnitsLostValues");
+        unitsLost.text = "";
+        if (numberOfInfLost == 0 && numberOfTanksLost == 0)
+        {
+            Debug.Log("no units were lost in the battle");
+            unitsLost.text = loserOfBattleName + " lost 0 units.";
+        }
+        else
+        {
+            Debug.Log("Units lost from " + loserOfBattleName + ". Tanks: " + numberOfTanksLost.ToString() + " infantry: " + numberOfInfLost.ToString());
+            unitsLost.text = loserOfBattleName + " lost\n";
+            if (numberOfTanksLost > 0)
+            {
+                Debug.Log("Tanks lost.");
+                unitsLost.text += numberOfTanksLost.ToString() + " tanks\n";
+            }
+            if (numberOfInfLost > 0)
+            {
+                Debug.Log("Infantry lost.");
+                unitsLost.text += numberOfInfLost.ToString() + " infantry";
+            }
+        }
+    }
+    void ShowDeadUnits()
+    {
+        Debug.Log("Executing ShowDeadUnits");
+        NetworkIdentity.spawned[currentBattleSite].gameObject.GetComponent<LandScript>().ExpandLosingUnits(loserOfBattlePlayerNumber);
+
+        foreach (uint unitNetId in unitNetIdsLost)
+        {
+           NetworkIdentity.spawned[unitNetId].gameObject.GetComponent<UnitScript>().SpawnUnitDeadIcon();
+        }
+    }
+    public void HandleUnitsLostFromRetreat(bool oldValue, bool newValue)
+    {
+        if (isServer)
+        {
+            unitsLostFromRetreat = newValue;
+        }
+        if (isClient && newValue && !localUnitsLostFromRetreat)
+        {
+            Debug.Log("Updating HandleUnitsLostFromRetreat to true");
+            if (!retreatingUnitsDestroyed.activeInHierarchy)
+                retreatingUnitsDestroyed.SetActive(true);
+            localUnitsLostFromRetreat = true;
+        }
+    }
+    public void ShowUnitsOnMap()
+    {
+        if (!showingNearbyUnits)
+        {
+            bool isPlayerviewingTheirHand = LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand;
+            if (!isPlayerViewingOpponentHand && !isPlayerviewingTheirHand)
+            {
+                //unhide the units on nearby land
+                GameObject battleSite = NetworkIdentity.spawned[currentBattleSite].gameObject;
+                GameObject allLand = GameObject.FindGameObjectWithTag("LandHolder");
+                foreach (Transform landObject in allLand.transform)
+                {
+                    float disFromBattle = Vector3.Distance(landObject.transform.position, battleSite.transform.position);
+                    if (disFromBattle < 3.01f)
+                    {
+                        LandScript landScript = landObject.gameObject.GetComponent<LandScript>();
+                        landScript.UnHideUnitText();
+                        landScript.UnHideBattleHighlight();
+                        if (landScript.UnitNetIdsAndPlayerNumber.Count > 0)
+                        {
+                            foreach (KeyValuePair<uint, int> unitOnLand in landScript.UnitNetIdsAndPlayerNumber)
+                            {
+                                GameObject unitObject = NetworkIdentity.spawned[unitOnLand.Key].gameObject;
+                                if (!unitObject.activeInHierarchy)
+                                    unitObject.SetActive(true);
+                            }
+                        }
+                    }
+                }
+                showNearybyUnitsButton.GetComponentInChildren<Text>().text = "Hide Nearby Units";
+                showingNearbyUnits = true;
+            }
+        }
+        else
+            HideUnitsOnMap();
+    }
+    void HideUnitsOnMap()
+    {
+        HideNonBattleUnits();
+        HideNonBattleLandTextAndHighlights();
+        showNearybyUnitsButton.GetComponentInChildren<Text>().text = "Show Nearby Units";
+        showingNearbyUnits = false;
+    }
+    void StartRetreatUnits()
+    {
+        SetGamePhaseText();
+        ActivateRetreatUnitsUI();
+    }
+    void ActivateRetreatUnitsUI()
+    {
+        if (UnitMovementUI.activeInHierarchy)
+            UnitMovementUI.SetActive(false);
+        if (BattlesDetectedPanel.activeInHierarchy)
+            BattlesDetectedPanel.SetActive(false);
+        if (ChooseCardsPanel.activeInHierarchy)
+            ChooseCardsPanel.SetActive(false);
+        if (BattleResultsPanel.activeInHierarchy)
+            BattleResultsPanel.SetActive(false);
+
+        //reset the camera size for unit movement
+        Camera.main.orthographicSize = 7;
+        Vector3 cameraPosition = new Vector3(-1.5f, 1.5f, -10f);
+        Camera.main.transform.position = cameraPosition;
+    }
 }
