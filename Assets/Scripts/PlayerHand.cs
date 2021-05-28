@@ -69,16 +69,24 @@ public class PlayerHand : NetworkBehaviour
             Debug.Log("Hand initialized for: " + ownerPlayerName);
         }
     }
-    public void ShowPlayerHandOnScreen()
+    public void ShowPlayerHandOnScreen(string HandOrDiscard)
     {
         isPlayerViewingTheirHand = true;
+
+        //Set the cards to show to either the discard or the hand?
+        List<GameObject> handOrDiscard = new List<GameObject>();
+        if (HandOrDiscard == "Hand")
+            handOrDiscard = Hand;
+        else if (HandOrDiscard == "Discard")
+            handOrDiscard = DiscardPile;
+
         if (GameplayManager.instance.currentGamePhase.StartsWith("Choose Card"))
         {
             Vector3 cardLocation = Camera.main.transform.position;
             cardLocation.x -= 7f;
             cardLocation.z = 0f;
             Vector3 cardScale = new Vector3(1.5f, 1.5f, 0f);
-            foreach (GameObject playerCard in Hand)
+            foreach (GameObject playerCard in handOrDiscard)
             {
                 if (!playerCard.activeInHierarchy)
                 {
@@ -98,7 +106,7 @@ public class PlayerHand : NetworkBehaviour
         {
             Vector3 cardLocation = new Vector3(-10f, 1.5f, 0f);
             Vector3 cardScale = new Vector3(1.75f, 1.75f, 0f);
-            foreach (GameObject playerCard in Hand)
+            foreach (GameObject playerCard in handOrDiscard)
             {
                 if (!playerCard.activeInHierarchy)
                 {
@@ -117,17 +125,24 @@ public class PlayerHand : NetworkBehaviour
             landScript.HideUnitText();
         }
     }
-    public void HidePlayerHandOnScreen()
+    public void HidePlayerHandOnScreen(string HandOrDiscard)
     {
         isPlayerViewingTheirHand = false;
-        foreach (GameObject playerCard in Hand)
+
+        List<GameObject> handOrDiscard = new List<GameObject>();
+        if (HandOrDiscard == "Hand")
+            handOrDiscard = Hand;
+        else if (HandOrDiscard == "Discard")
+            handOrDiscard = DiscardPile;
+
+        foreach (GameObject playerCard in handOrDiscard)
         {
             if (playerCard.activeInHierarchy)
             {
                 playerCard.SetActive(false);
             }
         }
-        if (GameplayManager.instance.currentGamePhase.StartsWith("Choose Card"))
+        if (GameplayManager.instance.currentGamePhase.StartsWith("Choose Card") || GameplayManager.instance.currentGamePhase == "Battle Results")
         {
             GameObject landHolder = GameObject.FindGameObjectWithTag("LandHolder");
             foreach (Transform landChild in landHolder.transform)
@@ -176,9 +191,17 @@ public class PlayerHand : NetworkBehaviour
             DiscardPileNetId.Add(cardtoDiscardNetId);
 
         // If cards in the hand still remain, have player remove cards locally and stuff
-        if (HandNetId.Count > 0)
+        
+        RpcMoveCardToDiscard(cardtoDiscardNetId);
+        if (HandNetId.Count == 0)
         {
-            RpcMoveCardToDiscard(cardtoDiscardNetId);
+            Debug.Log(ownerPlayerName + "'s hand is empty. Resetting their hand by add all discard pile cards back to their hand list");
+            foreach (uint discardCardNetID in DiscardPileNetId)
+            {
+                if (!HandNetId.Contains(discardCardNetID))
+                    HandNetId.Add(discardCardNetID);
+            }
+            DiscardPileNetId.Clear();
         }
     }
     [ClientRpc]
@@ -197,6 +220,21 @@ public class PlayerHand : NetworkBehaviour
                 cardToDiscard.transform.SetParent(this.transform);
             if (cardToDiscard.activeInHierarchy)
                 cardToDiscard.SetActive(false);
+            if (DiscardPile.Count > 0)
+                DiscardPile = DiscardPile.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
+        }
+        if (Hand.Count == 0)
+        {
+            Debug.Log("RpcMoveCardToDiscard: The player's hand is now empty. Resetting their hand by putting all cards in discard into their hand.");
+            foreach (GameObject cardInDiscard in DiscardPile)
+            {
+                if (!Hand.Contains(cardInDiscard))
+                    Hand.Add(cardInDiscard);
+                cardInDiscard.transform.SetParent(this.transform);
+                cardInDiscard.SetActive(false);
+            }
+            DiscardPile.Clear();
+            Hand = Hand.OrderByDescending(o => o.GetComponent<Card>().Power).ToList();
         }
     }
 }

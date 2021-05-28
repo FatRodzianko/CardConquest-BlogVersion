@@ -339,6 +339,7 @@ public class GameplayManager : NetworkBehaviour
         hidePlayerHandButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
         showPlayerHandButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
         showPlayerHandButton.GetComponentInChildren<Text>().text = "Cards in Hand";
+        showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Discard Pile";
         showPlayerDiscardButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
         showOpponentCardButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
         hideOpponentCardButton.transform.SetParent(UnitMovementUI.GetComponent<RectTransform>(), false);
@@ -369,7 +370,8 @@ public class GameplayManager : NetworkBehaviour
 
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
         }
         // When the movement phase begins, save the land occupied by the unit to be used in movement resets
         SaveUnitStartingLocation();
@@ -395,7 +397,8 @@ public class GameplayManager : NetworkBehaviour
         }
         if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
         {
-            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
             playerHandBeingViewed = null;
             isPlayerViewingOpponentHand = false;
         }
@@ -511,9 +514,10 @@ public class GameplayManager : NetworkBehaviour
             showPlayerHandButton.SetActive(false);
             unitMovementNoUnitsMovedText.gameObject.SetActive(false);
             hidePlayerHandButton.SetActive(true);
-            //PlayerHand.instance.ShowPlayerHandOnScreen();
+            showPlayerDiscardButton.SetActive(false);
+            //PlayerHand.instance.ShowPlayerHandOnScreen("Hand");
             MouseClickManager.instance.ClearUnitSelection();
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().ShowPlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().ShowPlayerHandOnScreen("Hand");
         }
 
     }
@@ -523,6 +527,7 @@ public class GameplayManager : NetworkBehaviour
         {
             endUnitMovementButton.SetActive(true);
             showPlayerHandButton.SetActive(true);
+            showPlayerDiscardButton.SetActive(true);
             if (haveUnitsMoved)
             {
                 resetAllMovementButton.SetActive(true);
@@ -533,8 +538,8 @@ public class GameplayManager : NetworkBehaviour
             }
 
             hidePlayerHandButton.SetActive(false);
-            //PlayerHand.instance.HidePlayerHandOnScreen();
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            //PlayerHand.instance.HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
             if (currentGamePhase.StartsWith("Choose Card"))
             {
                 MouseClickManager.instance.SelectCardClicked(MouseClickManager.instance.cardSelected);
@@ -788,6 +793,12 @@ public class GameplayManager : NetworkBehaviour
             buttonPos.y -= 50f;
             gamePlayerDiscardButton.GetComponent<RectTransform>().anchoredPosition = buttonPos;
             gamePlayerDiscardButton.GetComponentInChildren<Text>().text = gamePlayerScript.PlayerName + " Discard";
+
+            OpponentHandButtonScript gamePlayerDiscardButtonScript = gamePlayerDiscardButton.GetComponent<OpponentHandButtonScript>();
+            gamePlayerDiscardButtonScript.playerHandConnId = gamePlayerScript.ConnectionId;
+            gamePlayerDiscardButtonScript.playerHandOwnerName = gamePlayerScript.PlayerName;
+            gamePlayerDiscardButtonScript.FindOpponentHand();
+
             opponentHandButtons.Add(gamePlayerDiscardButton);
 
             gamePlayerHandButton.SetActive(false);
@@ -900,6 +911,9 @@ public class GameplayManager : NetworkBehaviour
         if (currentGamePhase == "New Battle Detected")
             startBattlesButton.GetComponentInChildren<Text>().text = "Return to Battles";
 
+        showPlayerHandButton.GetComponentInChildren<Text>().text = "Cards in Hand";
+        showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Discard Pile";
+
         if (hidePlayerHandButton.activeInHierarchy)
             hidePlayerHandButton.SetActive(false);
         if (!showPlayerHandButton.activeInHierarchy)
@@ -915,7 +929,8 @@ public class GameplayManager : NetworkBehaviour
 
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
         }
 
         if (opponentHandButtons.Count > 0)
@@ -928,7 +943,8 @@ public class GameplayManager : NetworkBehaviour
         }
         if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
         {
-            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
             playerHandBeingViewed = null;
             isPlayerViewingOpponentHand = false;
         }
@@ -1022,10 +1038,12 @@ public class GameplayManager : NetworkBehaviour
 
         confirmCardButton.GetComponentInChildren<Text>().text = "Confirm Card";
         showPlayerHandButton.GetComponentInChildren<Text>().text = "Select Card";
+        showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Discard Pile";
 
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
         }
 
         if (opponentHandButtons.Count > 0)
@@ -1038,7 +1056,8 @@ public class GameplayManager : NetworkBehaviour
         }
         if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
         {
-            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
             playerHandBeingViewed = null;
             isPlayerViewingOpponentHand = false;
         }
@@ -1321,12 +1340,14 @@ public class GameplayManager : NetworkBehaviour
 
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
         }
 
         if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
         {
-            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
             playerHandBeingViewed = null;
             isPlayerViewingOpponentHand = false;
         }
@@ -1530,6 +1551,7 @@ public class GameplayManager : NetworkBehaviour
         hidePlayerHandButton.transform.SetParent(RetreatUnitsPanel.GetComponent<RectTransform>(), false);
         showPlayerHandButton.transform.SetParent(RetreatUnitsPanel.GetComponent<RectTransform>(), false);
         showPlayerHandButton.GetComponentInChildren<Text>().text = "Cards in Hand";
+        showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Discard Pile";
         showPlayerDiscardButton.transform.SetParent(RetreatUnitsPanel.GetComponent<RectTransform>(), false);
         showOpponentCardButton.transform.SetParent(RetreatUnitsPanel.GetComponent<RectTransform>(), false);
         hideOpponentCardButton.transform.SetParent(RetreatUnitsPanel.GetComponent<RectTransform>(), false);
@@ -1552,7 +1574,8 @@ public class GameplayManager : NetworkBehaviour
 
         if (LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().isPlayerViewingTheirHand)
         {
-            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
         }
 
         if (opponentHandButtons.Count > 0)
@@ -1565,7 +1588,8 @@ public class GameplayManager : NetworkBehaviour
         }
         if (isPlayerViewingOpponentHand && playerHandBeingViewed != null)
         {
-            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen();
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Hand");
+            playerHandBeingViewed.GetComponent<PlayerHand>().HidePlayerHandOnScreen("Discard");
             playerHandBeingViewed = null;
             isPlayerViewingOpponentHand = false;
         }
@@ -1690,5 +1714,54 @@ public class GameplayManager : NetworkBehaviour
             HighlightBattleSites();
         else if (!newValue)
             haveBattleSitesBeenDone = false;
+    }
+    public void ShowPlayerDiscardPressed()
+    {
+        bool isEscMenuOpen = false;
+        try
+        {
+            isEscMenuOpen = EscMenuManager.instance.IsMainMenuOpen;
+        }
+        catch
+        {
+            Debug.Log("Can't access EscMenuManager");
+        }
+
+        PlayerHand localPlayerHandScript = LocalGamePlayerScript.myPlayerCardHand.GetComponent<PlayerHand>();
+
+        if (!localPlayerHandScript.isPlayerViewingTheirHand && !isEscMenuOpen && localPlayerHandScript.DiscardPile.Count > 0)
+        {
+
+            endUnitMovementButton.SetActive(false);
+            resetAllMovementButton.SetActive(false);
+            showPlayerHandButton.SetActive(false);
+            unitMovementNoUnitsMovedText.gameObject.SetActive(false);
+
+            showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Hide Discard";
+
+            localPlayerHandScript.ShowPlayerHandOnScreen("Discard");
+        }
+        else if (localPlayerHandScript.isPlayerViewingTheirHand && !isEscMenuOpen)
+        {
+            endUnitMovementButton.SetActive(true);
+            showPlayerHandButton.SetActive(true);
+
+            if (!LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                if (haveUnitsMoved)
+                {
+                    resetAllMovementButton.SetActive(true);
+                }
+                else if (!haveUnitsMoved)
+                {
+                    unitMovementNoUnitsMovedText.gameObject.SetActive(true);
+                }
+            }
+            hidePlayerHandButton.SetActive(false);
+
+            localPlayerHandScript.HidePlayerHandOnScreen("Discard");
+
+            showPlayerDiscardButton.GetComponentInChildren<Text>().text = "Discard Pile";
+        }
     }
 }
