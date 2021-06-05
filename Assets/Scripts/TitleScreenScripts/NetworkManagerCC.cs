@@ -128,5 +128,15 @@ public class NetworkManagerCC : NetworkManager
     public override void OnStopServer()
     {
         LobbyPlayers.Clear();
+        GamePlayers.Clear();
+    }
+    public void HostShutDownServer()
+    {
+        GameObject NetworkManagerObject = GameObject.Find("NetworkManager");
+        Destroy(NetworkManagerObject);
+        Shutdown();
+
+        Start();
+
     }
 }

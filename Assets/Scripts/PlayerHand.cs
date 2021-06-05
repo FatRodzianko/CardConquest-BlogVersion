@@ -101,6 +101,8 @@ public class PlayerHand : NetworkBehaviour
                 GameplayManager.instance.localPlayerBattlePanel.SetActive(false);
                 GameplayManager.instance.opponentPlayerBattlePanel.SetActive(false);
             }
+            if (GameplayManager.instance.isPlayerBaseDefense)
+                GameplayManager.instance.PlayerBaseDefenseObjects.SetActive(false);
         }
         else
         {
@@ -160,6 +162,11 @@ public class PlayerHand : NetworkBehaviour
             }
             if (GameplayManager.instance.showingNearbyUnits)
                 GameplayManager.instance.ShowUnitsOnMap();
+            if (GameplayManager.instance.isPlayerBaseDefense)
+            {
+                GameplayManager.instance.PlayerBaseDefenseObjects.SetActive(true);
+                GameplayManager.instance.BattleResultsBaseDefenseObjects.SetActive(true);
+            }
         }
         else
         {
