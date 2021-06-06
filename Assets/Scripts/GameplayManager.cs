@@ -588,7 +588,15 @@ public class GameplayManager : NetworkBehaviour
     public void ChangePlayerReadyStatus()
     {
         if (!EscMenuManager.instance.IsMainMenuOpen)
+        {
+            if (currentGamePhase.StartsWith("Choose Card") && LocalGamePlayerScript.playerBattleCardNetId == 0 && !LocalGamePlayerScript.ReadyForNextPhase)
+            {
+                Debug.Log("ChangePlayerReadyStatus: Local Game Player tried to ready up in Choose Cards phase with no card selected");
+                return;
+            }
             LocalGamePlayerScript.ChangeReadyForNextPhaseStatus();
+        }
+            
     }
     public void ChangeGamePhase(string newGamePhase)
     {
