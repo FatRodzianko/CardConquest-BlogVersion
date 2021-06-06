@@ -938,8 +938,9 @@ public class GamePlayer : NetworkBehaviour
             else
                 player2 = gamePlayer;
         }
-
+        Debug.Log("DetermineWhoWonBattle: Will get player 1 card: " + player1.playerBattleCardNetId.ToString());
         Card player1Card = NetworkIdentity.spawned[player1.playerBattleCardNetId].gameObject.GetComponent<Card>();
+        Debug.Log("DetermineWhoWonBattle: Will get player 2 card: " + player2.playerBattleCardNetId.ToString());
         Card player2Card = NetworkIdentity.spawned[player2.playerBattleCardNetId].gameObject.GetComponent<Card>();
 
         int player1BattleScore = 0;
