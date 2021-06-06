@@ -922,6 +922,9 @@ public class GamePlayer : NetworkBehaviour
         GameplayManager.instance.winnerOfBattlePlayerNumber = -1;
         GameplayManager.instance.winnerOfBattlePlayerConnId = -1;
         GameplayManager.instance.reasonForWinning = "";
+        GameplayManager.instance.loserOfBattleName = "";
+        GameplayManager.instance.loserOfBattlePlayerNumber = -1;
+        GameplayManager.instance.loserOfBattlePlayerConnId = -1;
         GamePlayer player1 = null;
         GamePlayer player2 = null;
 
