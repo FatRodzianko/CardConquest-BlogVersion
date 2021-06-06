@@ -896,12 +896,14 @@ public class GamePlayer : NetworkBehaviour
         // if a card is already selected by the player, remove it as their selected card and add it back to their Hand
         if (selectedCard)
         {
+            Debug.Log("RemoveSelectedCardFromHandAndReposition: Selected card exists. Adding selected card back to hand.");
             myPlayerCardHand.GetComponent<PlayerHand>().AddCardBackToHand(selectedCard);
             selectedCard.GetComponent<Card>().isClickable = true;
             selectedCard = null;
         }
         if (!selectedCard)
         {
+            Debug.Log("RemoveSelectedCardFromHandAndReposition: Selected card DOES NOT exist. Setting new card as selected card.");
             // set selectedCard and remove from the PlayerHand's Hand list
             selectedCard = NetworkIdentity.spawned[SelectedCardNetId].gameObject;
             myPlayerCardHand.GetComponent<PlayerHand>().Hand.Remove(selectedCard);
@@ -936,29 +938,17 @@ public class GamePlayer : NetworkBehaviour
                 player2 = gamePlayer;
         }
 
-        Card player1Card = null;
-        Card player2Card = null;
-
-        if (player1.playerBattleCardNetId != 0)
-        {
-            player1Card = NetworkIdentity.spawned[player1.playerBattleCardNetId].gameObject.GetComponent<Card>();
-        }
-        if (player2.playerBattleCardNetId != 0)
-        {
-            player2Card = NetworkIdentity.spawned[player2.playerBattleCardNetId].gameObject.GetComponent<Card>();
-        }
-        
+        Card player1Card = NetworkIdentity.spawned[player1.playerBattleCardNetId].gameObject.GetComponent<Card>();
+        Card player2Card = NetworkIdentity.spawned[player2.playerBattleCardNetId].gameObject.GetComponent<Card>();
 
         int player1BattleScore = 0;
         int player2BattleScore = 0;
         //Calculate player 1 score
         player1BattleScore = player1.playerBattleScore;
-        if(player1Card)
-            player1BattleScore += player1Card.Power;
+        player1BattleScore += player1Card.Power;
         //Calculate player2 score
         player2BattleScore = player2.playerBattleScore;
-        if(player2Card)
-            player2BattleScore += player2Card.Power;
+        player2BattleScore += player2Card.Power;
 
         if (player1BattleScore > player2BattleScore)
         {
