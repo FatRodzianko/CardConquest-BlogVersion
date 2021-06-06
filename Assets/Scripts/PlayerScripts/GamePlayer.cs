@@ -881,6 +881,7 @@ public class GamePlayer : NetworkBehaviour
             Debug.Log("Running HandleUpdatedPlayerBattleCard as a client");
             if (hasAuthority)
             {
+                Debug.Log("HandleUpdatedPlayerBattleCard: Client has authority to update battle card.");
                 GameplayManager.instance.HidePlayerHandPressed();
                 RemoveSelectedCardFromHandAndReposition(newValue);
             }
