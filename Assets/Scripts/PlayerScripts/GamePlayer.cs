@@ -863,14 +863,14 @@ public class GamePlayer : NetworkBehaviour
         {
             Debug.Log("Player card: " + playerCardNetworkId + " is in " + requestingPlayer.PlayerName + "'s hand.");
             //requestingPlayer.playerBattleCardNetId = playerCardNetworkId;
-            HandleUpdatedPlayerBattleCard(requestingPlayer.playerBattleCardNetId, playerCardNetworkId);
+            requestingPlayer.HandleUpdatedPlayerBattleCard(requestingPlayer.playerBattleCardNetId, playerCardNetworkId);
         }
         else
         {
             Debug.Log("Player card: " + playerCardNetworkId + " IS NOT in " + requestingPlayer.PlayerName + "'s hand.");
         }
     }
-    void HandleUpdatedPlayerBattleCard(uint oldValue, uint newValue)
+    public void HandleUpdatedPlayerBattleCard(uint oldValue, uint newValue)
     {
         if (isServer)
         {
@@ -879,15 +879,17 @@ public class GamePlayer : NetworkBehaviour
         if (isClient && newValue != 0)
         {
             Debug.Log("Running HandleUpdatedPlayerBattleCard as a client");
+            Debug.Log("HandleUpdatedPlayerBattleCard: new value is: " + newValue.ToString());
             if (hasAuthority)
             {
-                Debug.Log("HandleUpdatedPlayerBattleCard: Client has authority to update battle card.");
+                Debug.Log("HandleUpdatedPlayerBattleCard: Client has authority to update battle card to this value: " + newValue.ToString());
                 GameplayManager.instance.HidePlayerHandPressed();
                 RemoveSelectedCardFromHandAndReposition(newValue);
             }
         }
         if (isClient && newValue == 0)
         {
+            Debug.Log("HandleUpdatedPlayerBattleCard: new value is 0: " + newValue.ToString());
             selectedCard = null;
         }
     }
