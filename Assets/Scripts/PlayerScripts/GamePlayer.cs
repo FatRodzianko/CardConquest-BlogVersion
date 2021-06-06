@@ -1042,15 +1042,16 @@ public class GamePlayer : NetworkBehaviour
     void UnitsLostFromBattle(GamePlayer winningPlayer, GamePlayer losingPlayer)
     {
         Debug.Log("Executing UnitsLostFromBattle");
+        //Clear out old data
+        GameplayManager.instance.numberOfTanksLost = 0;
+        GameplayManager.instance.numberOfInfLost = 0;
+        GameplayManager.instance.unitNetIdsLost.Clear();
         if (winningPlayer && losingPlayer)
         {
             Card winningCard = NetworkIdentity.spawned[winningPlayer.playerBattleCardNetId].gameObject.GetComponent<Card>();
             Card losingCard = NetworkIdentity.spawned[losingPlayer.playerBattleCardNetId].gameObject.GetComponent<Card>();
 
-            //Clear out old data
-            GameplayManager.instance.numberOfTanksLost = 0;
-            GameplayManager.instance.numberOfInfLost = 0;
-            GameplayManager.instance.unitNetIdsLost.Clear();
+            
 
             if (winningCard.AttackValue > losingCard.DefenseValue)
             {
